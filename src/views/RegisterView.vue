@@ -1,30 +1,46 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
+import { useToast } from '../composables/useToast'
+import { useLoading } from '../composables/useLoading'
 import { ApiError } from '../api/client'
+import AppLogo from '../components/AppLogo.vue'
 
 const router = useRouter()
 const { register } = useAuth()
+const { show } = useToast()
+const { show: showLoading, hide: hideLoading } = useLoading()
 
 const fullName = ref('')
 const email = ref('')
 const password = ref('')
 const displayName = ref('')
 const role = ref<'renter' | 'owner'>('renter')
-const loading = ref(false)
-const error = ref('')
+const passwordTouched = ref(false)
+const showPassword = ref(false)
+
+const rules = computed(() => ({
+  length:    password.value.length >= 8,
+  uppercase: /[A-Z]/.test(password.value),
+  lowercase: /[a-z]/.test(password.value),
+  number:    /[0-9]/.test(password.value),
+  special:   /[^A-Za-z0-9]/.test(password.value),
+}))
+
+const passwordValid = computed(() => Object.values(rules.value).every(Boolean))
 
 async function submit() {
-  error.value = ''
-  loading.value = true
+  if (!passwordValid.value) return
+  showLoading()
   try {
     await register(email.value, password.value, fullName.value, displayName.value, role.value)
-    router.push('/')
+    show('Account created! Welcome to RentSpace.', 'success')
+    await router.push('/')
   } catch (err) {
-    error.value = err instanceof ApiError ? err.message : 'Something went wrong'
+    show(err instanceof ApiError ? err.message : 'Something went wrong', 'error')
   } finally {
-    loading.value = false
+    hideLoading()
   }
 }
 </script>
@@ -34,25 +50,14 @@ async function submit() {
     <div class="w-full max-w-sm">
 
       <!-- Logo -->
-      <RouterLink to="/" class="flex items-center justify-center gap-2 mb-8">
-        <div class="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
-          <span class="text-text-inverse text-sm font-bold tracking-tight">RS</span>
-        </div>
-        <span class="font-semibold text-text-primary text-lg tracking-tight">rentspace</span>
-      </RouterLink>
+      <div class="flex justify-center mb-8">
+        <AppLogo size="md" />
+      </div>
 
       <!-- Card -->
       <div class="bg-surface border border-border rounded-2xl p-8 shadow-sm">
         <h1 class="text-xl font-bold text-text-primary mb-1">Create your account</h1>
         <p class="text-sm text-text-secondary mb-6">Start renting or listing spaces today</p>
-
-        <!-- Error -->
-        <div
-          v-if="error"
-          class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-error text-sm rounded-xl"
-        >
-          {{ error }}
-        </div>
 
         <form @submit.prevent="submit" class="space-y-4">
 
@@ -71,9 +76,7 @@ async function submit() {
                 ]"
               >
                 <span class="text-base">🔍</span>
-                <span
-                  :class="['text-sm font-medium', role === 'renter' ? 'text-brand' : 'text-text-primary']"
-                >
+                <span :class="['text-sm font-medium', role === 'renter' ? 'text-brand' : 'text-text-primary']">
                   Rent spaces
                 </span>
                 <span class="text-xs text-text-muted leading-tight">Browse and book</span>
@@ -89,44 +92,52 @@ async function submit() {
                 ]"
               >
                 <span class="text-base">🏢</span>
-                <span
-                  :class="['text-sm font-medium', role === 'owner' ? 'text-brand' : 'text-text-primary']"
-                >
+                <span :class="['text-sm font-medium', role === 'owner' ? 'text-brand' : 'text-text-primary']">
                   List a space
                 </span>
                 <span class="text-xs text-text-muted leading-tight">Earn from your space</span>
               </button>
             </div>
+            <p class="mt-2 text-xs text-text-muted">
+              You can add a second profile for the other role after signing up.
+            </p>
           </div>
 
+          <!-- Full name -->
           <div>
-            <label class="block text-sm font-medium text-text-primary mb-1.5">Full name</label>
+            <label class="block text-sm font-medium text-text-primary mb-1.5">
+              Full name <span class="text-error">*</span>
+            </label>
             <input
               v-model="fullName"
               type="text"
               required
               autocomplete="name"
-              placeholder="Priya Tanakorn"
+              placeholder="John Doe"
               class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
             />
           </div>
 
+          <!-- Display name -->
           <div>
             <label class="block text-sm font-medium text-text-primary mb-1.5">
-              Display name
+              Display name <span class="text-error">*</span>
               <span class="text-text-muted font-normal ml-1">— shown to other users</span>
             </label>
             <input
               v-model="displayName"
               type="text"
               required
-              placeholder="Priya"
+              placeholder="John"
               class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
             />
           </div>
 
+          <!-- Email -->
           <div>
-            <label class="block text-sm font-medium text-text-primary mb-1.5">Email</label>
+            <label class="block text-sm font-medium text-text-primary mb-1.5">
+              Email <span class="text-error">*</span>
+            </label>
             <input
               v-model="email"
               type="email"
@@ -137,25 +148,72 @@ async function submit() {
             />
           </div>
 
+          <!-- Password -->
           <div>
-            <label class="block text-sm font-medium text-text-primary mb-1.5">Password</label>
-            <input
-              v-model="password"
-              type="password"
-              required
-              autocomplete="new-password"
-              placeholder="At least 8 characters"
-              class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
-            />
+            <label class="block text-sm font-medium text-text-primary mb-1.5">
+              Password <span class="text-error">*</span>
+            </label>
+            <div class="relative">
+              <input
+                v-model="password"
+                :type="showPassword ? 'text' : 'password'"
+                required
+                autocomplete="new-password"
+                placeholder="Create a strong password"
+                @input="passwordTouched = true"
+                :class="[
+                  'w-full px-3.5 py-2.5 pr-10 text-sm text-text-primary placeholder:text-text-muted border rounded-xl outline-none focus:ring-2 transition-colors',
+                  passwordTouched && !passwordValid
+                    ? 'border-error focus:ring-error/20 focus:border-error'
+                    : 'border-border focus:ring-brand/20 focus:border-brand',
+                ]"
+              />
+              <button
+                type="button"
+                @click="showPassword = !showPassword"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors"
+                :aria-label="showPassword ? 'Hide password' : 'Show password'"
+              >
+                <!-- Eye open — password is currently visible -->
+                <svg v-if="showPassword" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                <!-- Eye off — password is currently hidden -->
+                <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Requirements checklist -->
+            <ul class="mt-2.5 space-y-1">
+              <li
+                v-for="(met, key) in rules"
+                :key="key"
+                :class="['flex items-center gap-1.5 text-xs transition-colors', met ? 'text-success' : 'text-text-muted']"
+              >
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path v-if="met" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                  <path v-else stroke-linecap="round" stroke-linejoin="round" d="M12 12m-1 0a1 1 0 102 0 1 1 0 10-2 0" />
+                </svg>
+                <span>{{
+                  key === 'length'    ? 'At least 8 characters' :
+                  key === 'uppercase' ? 'Uppercase letter (A–Z)' :
+                  key === 'lowercase' ? 'Lowercase letter (a–z)' :
+                  key === 'number'    ? 'Number (0–9)' :
+                                       'Special character (!@#$…)'
+                }}</span>
+              </li>
+            </ul>
           </div>
 
           <button
             type="submit"
-            :disabled="loading"
+            :disabled="passwordTouched && !passwordValid"
             class="w-full bg-brand text-text-inverse py-2.5 rounded-xl text-sm font-medium hover:bg-brand-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-2"
           >
-            <span v-if="loading">Creating account…</span>
-            <span v-else>Create account</span>
+            Create account
           </button>
         </form>
       </div>

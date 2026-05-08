@@ -1,39 +1,55 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
+import { useLoading } from '../composables/useLoading'
+import AppLogo from './AppLogo.vue'
 
 const router = useRouter()
 const { isAuthenticated, activeProfile, profiles, switchProfile, logout } = useAuth()
+const { show: showLoading, hide: hideLoading } = useLoading()
 
 const menuOpen = ref(false)
 
-function closeMenu() {
-  menuOpen.value = false
-}
+function closeMenu() { menuOpen.value = false }
 
 async function handleSwitch(profileId: string) {
   closeMenu()
+  showLoading()
   await switchProfile(profileId)
+  hideLoading()
 }
 
-function handleLogout() {
+async function handleLogout() {
   closeMenu()
+  showLoading()
+  await new Promise(r => setTimeout(r, 500))
   logout()
-  router.push('/')
+  await router.push('/')
+  hideLoading()
 }
+
+// Generate a deterministic background colour from the display name
+const avatarColor = computed(() => {
+  const colors = [
+    'bg-violet-500', 'bg-blue-500', 'bg-emerald-500',
+    'bg-rose-500',   'bg-amber-500', 'bg-cyan-500',
+  ]
+  const name = activeProfile.value?.display_name ?? ''
+  const idx = name.charCodeAt(0) % colors.length
+  return colors[idx] ?? 'bg-brand'
+})
+
+const avatarInitial = computed(() =>
+  (activeProfile.value?.display_name ?? '?')[0].toUpperCase()
+)
 </script>
 
 <template>
-  <header class="sticky top-0 z-50 bg-surface border-b border-border">
+  <header class="sticky top-0 z-40 bg-surface border-b border-border">
     <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-6">
 
-      <RouterLink to="/" class="flex items-center gap-2 shrink-0">
-        <div class="w-7 h-7 bg-brand rounded-lg flex items-center justify-center">
-          <span class="text-text-inverse text-xs font-bold tracking-tight">RS</span>
-        </div>
-        <span class="font-semibold text-text-primary text-base tracking-tight">rentspace</span>
-      </RouterLink>
+      <AppLogo />
 
       <nav class="hidden md:flex items-center gap-6 text-sm text-text-secondary">
         <RouterLink to="/" class="hover:text-text-primary transition-colors">Browse</RouterLink>
@@ -60,21 +76,30 @@ function handleLogout() {
       <div v-else class="flex items-center gap-3 ml-auto relative">
         <button
           @click="menuOpen = !menuOpen"
-          class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-muted transition-colors text-sm"
+          class="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-surface-muted transition-colors"
         >
-          <span
-            :class="[
-              'text-xs font-medium px-2 py-0.5 rounded-full',
-              activeProfile?.role === 'owner'
-                ? 'bg-brand-light text-brand'
-                : 'bg-surface-muted text-text-secondary',
-            ]"
-          >
-            {{ activeProfile?.role ?? '—' }}
-          </span>
-          <span class="font-medium text-text-primary">{{ activeProfile?.display_name ?? '—' }}</span>
+          <!-- Avatar -->
+          <div :class="['w-7 h-7 rounded-full flex items-center justify-center shrink-0', avatarColor]">
+            <span class="text-white text-xs font-semibold leading-none">{{ avatarInitial }}</span>
+          </div>
+
+          <!-- Name + role badge -->
+          <div class="hidden sm:flex flex-col items-start leading-none gap-0.5">
+            <span class="text-sm font-medium text-text-primary">{{ activeProfile?.display_name ?? '—' }}</span>
+            <span
+              :class="[
+                'text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded',
+                activeProfile?.role === 'owner'
+                  ? 'bg-brand-light text-brand'
+                  : 'bg-emerald-100 text-emerald-700',
+              ]"
+            >
+              {{ activeProfile?.role ?? '' }}
+            </span>
+          </div>
+
           <svg
-            :class="['w-3.5 h-3.5 text-text-muted transition-transform', menuOpen && 'rotate-180']"
+            :class="['hidden sm:block w-3.5 h-3.5 text-text-muted transition-transform shrink-0', menuOpen && 'rotate-180']"
             fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"
           >
             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
@@ -84,10 +109,16 @@ function handleLogout() {
         <!-- Dropdown -->
         <div
           v-if="menuOpen"
-          class="absolute right-0 top-full mt-2 w-52 bg-surface border border-border rounded-xl shadow-lg py-1 z-50"
+          class="absolute right-0 top-full mt-2 w-56 bg-surface border border-border rounded-xl shadow-lg py-1 z-50"
         >
+          <!-- Profile info header -->
+          <div class="px-3 py-2.5 border-b border-border mb-1">
+            <p class="text-sm font-medium text-text-primary">{{ activeProfile?.display_name }}</p>
+            <p class="text-xs text-text-muted mt-0.5">{{ activeProfile?.role === 'owner' ? 'Owner account' : 'Renter account' }}</p>
+          </div>
+
           <template v-if="profiles.length > 1">
-            <p class="px-3 pt-2 pb-1 text-xs font-medium text-text-muted uppercase tracking-wide">Switch profile</p>
+            <p class="px-3 pt-1.5 pb-1 text-xs font-medium text-text-muted uppercase tracking-wide">Switch profile</p>
             <button
               v-for="profile in profiles"
               :key="profile.id"
@@ -99,7 +130,14 @@ function handleLogout() {
                   : 'text-text-primary hover:bg-surface-subtle',
               ]"
             >
-              <span class="text-xs px-1.5 py-0.5 rounded font-medium bg-surface-muted text-text-secondary">
+              <span
+                :class="[
+                  'text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded',
+                  profile.role === 'owner'
+                    ? 'bg-brand-light text-brand'
+                    : 'bg-emerald-100 text-emerald-700',
+                ]"
+              >
                 {{ profile.role }}
               </span>
               <span>{{ profile.display_name }}</span>
