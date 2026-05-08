@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { useLoading } from '../composables/useLoading'
 import AppLogo from './AppLogo.vue'
+import RoleBadge from './RoleBadge.vue'
 
 const router = useRouter()
 const { isAuthenticated, activeProfile, profiles, switchProfile, logout } = useAuth()
@@ -76,7 +77,7 @@ const avatarInitial = computed(() =>
       <div v-else class="flex items-center gap-3 ml-auto relative">
         <button
           @click="menuOpen = !menuOpen"
-          class="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-surface-muted transition-colors"
+          class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-surface-muted transition-colors"
         >
           <!-- Avatar -->
           <div :class="['w-7 h-7 rounded-full flex items-center justify-center shrink-0', avatarColor]">
@@ -86,16 +87,7 @@ const avatarInitial = computed(() =>
           <!-- Name + role badge -->
           <div class="hidden sm:flex flex-col items-start leading-none gap-0.5">
             <span class="text-sm font-medium text-text-primary">{{ activeProfile?.display_name ?? '—' }}</span>
-            <span
-              :class="[
-                'inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded',
-                activeProfile?.role === 'owner'
-                  ? 'bg-brand-light text-brand'
-                  : 'bg-emerald-100 text-emerald-700',
-              ]"
-            >
-              {{ activeProfile?.role ?? '' }}
-            </span>
+            <RoleBadge v-if="activeProfile?.role" :role="activeProfile.role" />
           </div>
 
           <svg
@@ -130,16 +122,7 @@ const avatarInitial = computed(() =>
                   : 'text-text-primary hover:bg-surface-subtle',
               ]"
             >
-              <span
-                :class="[
-                  'inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded',
-                  profile.role === 'owner'
-                    ? 'bg-brand-light text-brand'
-                    : 'bg-emerald-100 text-emerald-700',
-                ]"
-              >
-                {{ profile.role }}
-              </span>
+              <RoleBadge :role="profile.role" />
               <span>{{ profile.display_name }}</span>
               <svg
                 v-if="profile.id === activeProfile?.id"
