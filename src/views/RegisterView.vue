@@ -13,6 +13,7 @@ const { show } = useToast()
 const { show: showLoading, hide: hideLoading } = useLoading()
 
 const fullName = ref('')
+const phone = ref('')
 const email = ref('')
 const password = ref('')
 const displayName = ref('')
@@ -34,7 +35,7 @@ async function submit() {
   if (!passwordValid.value) return
   showLoading()
   try {
-    await register(email.value, password.value, fullName.value, displayName.value, role.value)
+    await register(email.value, password.value, fullName.value, displayName.value, role.value, phone.value || undefined)
     show('Account created! Welcome to RentSpace.', 'success')
     await router.push('/')
   } catch (err) {
@@ -114,6 +115,21 @@ async function submit() {
               required
               autocomplete="name"
               placeholder="John Doe"
+              class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
+            />
+          </div>
+
+          <!-- Phone -->
+          <div>
+            <label class="block text-sm font-medium text-text-primary mb-1.5">
+              Phone number
+              <span class="text-text-muted font-normal ml-1">— optional</span>
+            </label>
+            <input
+              v-model="phone"
+              type="tel"
+              autocomplete="tel"
+              placeholder="+66 81 234 5678"
               class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
             />
           </div>

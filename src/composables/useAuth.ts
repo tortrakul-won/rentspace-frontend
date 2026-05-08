@@ -42,6 +42,7 @@ export function useAuth() {
     fullName: string,
     displayName: string,
     profileRole: 'owner' | 'renter',
+    phone?: string,
   ) {
     const res = await authApi.register({
       email,
@@ -49,6 +50,7 @@ export function useAuth() {
       full_name: fullName,
       display_name: displayName,
       profile_role: profileRole,
+      ...(phone ? { phone } : {}),
     })
     token.value = res.token
     user.value = res.user
