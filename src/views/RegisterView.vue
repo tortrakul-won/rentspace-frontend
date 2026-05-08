@@ -129,7 +129,7 @@ async function submit() {
               v-model="phone"
               type="tel"
               autocomplete="tel"
-              placeholder="+66 81 234 5678"
+              placeholder="+66 XX XXX XXXX"
               class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
             />
           </div>
