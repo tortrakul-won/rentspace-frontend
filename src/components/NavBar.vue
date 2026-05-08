@@ -88,7 +88,7 @@ const avatarInitial = computed(() =>
             <span class="text-sm font-medium text-text-primary">{{ activeProfile?.display_name ?? '—' }}</span>
             <span
               :class="[
-                'text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded',
+                'inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded',
                 activeProfile?.role === 'owner'
                   ? 'bg-brand-light text-brand'
                   : 'bg-emerald-100 text-emerald-700',
@@ -132,7 +132,7 @@ const avatarInitial = computed(() =>
             >
               <span
                 :class="[
-                  'text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded',
+                  'inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded',
                   profile.role === 'owner'
                     ? 'bg-brand-light text-brand'
                     : 'bg-emerald-100 text-emerald-700',
