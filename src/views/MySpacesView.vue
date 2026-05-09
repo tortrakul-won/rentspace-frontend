@@ -23,7 +23,8 @@ const confirmDeactivateId = ref<string | null>(null)
 
 async function fetchPage(p: number) {
   const res = await listMySpaces(token.value!, p)
-  spaces.value = p === 1 ? res.data : [...spaces.value, ...res.data]
+  const data = res.data ?? []
+  spaces.value = p === 1 ? data : [...spaces.value, ...data]
   hasMore.value = res.has_more
   page.value = p
 }
