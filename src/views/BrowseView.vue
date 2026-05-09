@@ -29,7 +29,8 @@ async function fetchSpaces(reset: boolean) {
   try {
     const cat = activeCategory.value === 'All' ? undefined : activeCategory.value
     const res = await listSpaces(p, 20, cat, searchQuery.value.trim() || undefined)
-    spaces.value = reset ? res.data : [...spaces.value, ...res.data]
+    const data = res.data ?? []
+    spaces.value = reset ? data : [...spaces.value, ...data]
     hasMore.value = res.has_more
     total.value = res.total
     page.value = p
