@@ -35,3 +35,7 @@ export function switchProfile(profileId: string, token: string): Promise<SwitchP
 export function currentUser(token: string): Promise<CurrentUserResponse> {
   return apiFetch('/api/v1/auth/me', {}, token)
 }
+
+export function addProfile(body: { role: string; display_name: string }, token: string): Promise<import('./types').ProfileResponse> {
+  return apiFetch('/api/v1/auth/profiles', { method: 'POST', body: JSON.stringify(body) }, token)
+}
