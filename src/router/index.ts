@@ -21,6 +21,21 @@ export const router = createRouter({
       component: () => import('../views/ProfilesView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/my-spaces',
+      component: () => import('../views/MySpacesView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/spaces/new',
+      component: () => import('../views/CreateSpaceView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/spaces/:id/edit',
+      component: () => import('../views/EditSpaceView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

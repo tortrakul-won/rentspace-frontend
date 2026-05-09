@@ -40,3 +40,42 @@ export interface CurrentUserResponse {
   profiles: ProfileResponse[]
   active_profile_id: string
 }
+
+export interface SpaceResponse {
+  id: string
+  owner_id: string
+  name: string
+  description: string
+  location: string
+  category: string
+  images: string[]
+  hourly_rate: number
+  daily_rate: number
+  min_hours: number
+  capacity: number
+  amenities: string[]
+  weekend_surcharge_pct: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AvailabilitySlot {
+  day_of_week: number
+  open_time: string
+  close_time: string
+}
+
+export interface SpaceFormData {
+  name: string
+  description: string
+  location: string
+  category: string
+  images: string[]
+  hourly_rate: number
+  daily_rate: number
+  min_hours: number
+  capacity: number
+  amenities: string[]
+  weekend_surcharge_pct: number
+}

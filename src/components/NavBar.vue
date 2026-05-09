@@ -55,6 +55,11 @@ const avatarInitial = computed(() =>
 
       <nav class="hidden md:flex items-center gap-6 text-sm text-text-secondary">
         <RouterLink to="/" class="hover:text-text-primary transition-colors">Browse</RouterLink>
+        <RouterLink
+          v-if="activeProfile?.role === 'owner'"
+          to="/my-spaces"
+          class="hover:text-text-primary transition-colors"
+        >My Spaces</RouterLink>
         <a href="#" class="hover:text-text-primary transition-colors">How it works</a>
       </nav>
 
@@ -136,6 +141,17 @@ const avatarInitial = computed(() =>
             <div class="my-1 border-t border-border" />
           </template>
 
+          <RouterLink
+            v-if="activeProfile?.role === 'owner'"
+            to="/my-spaces"
+            @click="closeMenu"
+            class="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-subtle transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            My Spaces
+          </RouterLink>
           <RouterLink
             to="/profiles"
             @click="closeMenu"
