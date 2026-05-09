@@ -16,13 +16,14 @@ const pendingSearch = ref('')
 const spaces = ref<SpaceResponse[]>([])
 const loading = ref(true)
 const loadingMore = ref(false)
+const fetchError = ref(false)
 const page = ref(1)
 const hasMore = ref(false)
 const total = ref(0)
 
 async function fetchSpaces(reset: boolean) {
   const p = reset ? 1 : page.value + 1
-  if (reset) loading.value = true
+  if (reset) { loading.value = true; fetchError.value = false }
   else loadingMore.value = true
 
   try {
@@ -33,6 +34,7 @@ async function fetchSpaces(reset: boolean) {
     total.value = res.total
     page.value = p
   } catch {
+    fetchError.value = true
     show('Failed to load spaces', 'error')
   } finally {
     loading.value = false
@@ -122,42 +124,49 @@ fetchSpaces(true)
       </div>
 
       <template v-else>
-        <!-- Result count -->
-        <p class="text-sm text-text-muted mb-6">
-          {{ total }} space{{ total !== 1 ? 's' : '' }} available
-        </p>
-
-        <!-- Grid -->
-        <div
-          v-if="spaces.length > 0"
-          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10"
-        >
-          <SpaceCard v-for="space in spaces" :key="space.id" :space="space" />
-        </div>
-
-        <!-- Empty state -->
-        <div v-else class="text-center py-24">
-          <p class="text-2xl mb-2">🔍</p>
-          <p class="text-text-primary font-medium mb-1">No spaces found</p>
-          <p class="text-text-muted text-sm mb-6">Try a different search or category</p>
+        <!-- Error state -->
+        <div v-if="fetchError" class="text-center py-24">
+          <p class="text-text-muted mb-4">Could not load spaces. Please try again.</p>
           <button
-            @click="pendingSearch = ''; searchQuery = ''; activeCategory = 'All'"
+            @click="fetchSpaces(true)"
             class="text-sm text-brand hover:text-brand-hover font-medium underline underline-offset-2"
           >
-            Clear filters
+            Retry
           </button>
         </div>
 
-        <!-- Load more -->
-        <div v-if="hasMore" class="pt-10 text-center">
-          <button
-            @click="fetchSpaces(false)"
-            :disabled="loadingMore"
-            class="px-8 py-3 text-sm font-medium text-text-secondary border border-border rounded-xl hover:border-text-secondary hover:text-text-primary disabled:opacity-50 transition-colors"
+        <template v-else>
+          <!-- Result count -->
+          <p class="text-sm text-text-muted mb-6">
+            {{ total }} space{{ total !== 1 ? 's' : '' }} available
+          </p>
+
+          <!-- Grid -->
+          <div
+            v-if="spaces.length > 0"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10"
           >
-            {{ loadingMore ? 'Loading…' : 'Load more' }}
-          </button>
-        </div>
+            <SpaceCard v-for="space in spaces" :key="space.id" :space="space" />
+          </div>
+
+          <!-- Empty state -->
+          <div v-else class="text-center py-24">
+            <p class="text-text-primary font-medium mb-1">No spaces available yet</p>
+            <p class="text-text-muted text-sm">Check back soon</p>
+          </div>
+        </template>
+
+          <!-- Load more -->
+          <div v-if="hasMore" class="pt-10 text-center">
+            <button
+              @click="fetchSpaces(false)"
+              :disabled="loadingMore"
+              class="px-8 py-3 text-sm font-medium text-text-secondary border border-border rounded-xl hover:border-text-secondary hover:text-text-primary disabled:opacity-50 transition-colors"
+            >
+              {{ loadingMore ? 'Loading…' : 'Load more' }}
+            </button>
+          </div>
+        </template>
       </template>
 
     </section>
