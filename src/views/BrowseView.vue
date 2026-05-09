@@ -1,21 +1,55 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, watch } from 'vue'
 import NavBar from '../components/NavBar.vue'
 import SpaceCard from '../components/SpaceCard.vue'
-import { spaces } from '../data/spaces'
+import { useAuth } from '../composables/useAuth'
+import { useToast } from '../composables/useToast'
+import { listSpaces } from '../api/spaces'
+import type { SpaceResponse } from '../api/types'
+
+const { token } = useAuth()
+const { show } = useToast()
 
 const categories = ['All', 'Studio', 'Outdoor', 'Loft', 'Garden', 'Office', 'Café']
 const activeCategory = ref('All')
 const searchQuery = ref('')
+const pendingSearch = ref('')
 
-const filteredSpaces = computed(() =>
-  spaces.filter((s) => {
-    const matchCategory = activeCategory.value === 'All' || s.category === activeCategory.value
-    const q = searchQuery.value.toLowerCase().trim()
-    const matchSearch = !q || s.name.toLowerCase().includes(q) || s.location.toLowerCase().includes(q)
-    return matchCategory && matchSearch
-  })
-)
+const spaces = ref<SpaceResponse[]>([])
+const loading = ref(true)
+const loadingMore = ref(false)
+const page = ref(1)
+const hasMore = ref(false)
+const total = ref(0)
+
+async function fetchSpaces(reset: boolean) {
+  const p = reset ? 1 : page.value + 1
+  if (reset) loading.value = true
+  else loadingMore.value = true
+
+  try {
+    const cat = activeCategory.value === 'All' ? undefined : activeCategory.value
+    const res = await listSpaces(token.value!, p, 20, cat, searchQuery.value.trim() || undefined)
+    spaces.value = reset ? res.data : [...spaces.value, ...res.data]
+    hasMore.value = res.has_more
+    total.value = res.total
+    page.value = p
+  } catch {
+    show('Failed to load spaces', 'error')
+  } finally {
+    loading.value = false
+    loadingMore.value = false
+  }
+}
+
+function handleSearch() {
+  searchQuery.value = pendingSearch.value
+}
+
+watch(activeCategory, () => fetchSpaces(true))
+watch(searchQuery, () => fetchSpaces(true))
+
+fetchSpaces(true)
 </script>
 
 <template>
@@ -35,10 +69,11 @@ const filteredSpaces = computed(() =>
         <!-- Search bar -->
         <div class="bg-surface rounded-2xl shadow-2xl p-2 flex flex-col sm:flex-row gap-2 max-w-2xl mx-auto">
           <input
-            v-model="searchQuery"
+            v-model="pendingSearch"
             type="text"
             placeholder="Search by name or location…"
             class="flex-1 px-4 py-3 text-sm text-text-primary placeholder:text-text-muted outline-none rounded-xl"
+            @keydown.enter="handleSearch"
           />
           <select
             v-model="activeCategory"
@@ -49,6 +84,7 @@ const filteredSpaces = computed(() =>
             </option>
           </select>
           <button
+            @click="handleSearch"
             class="bg-brand text-text-inverse px-7 py-3 rounded-xl text-sm font-medium hover:bg-brand-hover transition-colors shrink-0"
           >
             Search
@@ -77,31 +113,54 @@ const filteredSpaces = computed(() =>
         </button>
       </div>
 
-      <!-- Result count -->
-      <p class="text-sm text-text-muted mb-6">
-        {{ filteredSpaces.length }} space{{ filteredSpaces.length !== 1 ? 's' : '' }} available
-      </p>
-
-      <!-- Grid -->
-      <div
-        v-if="filteredSpaces.length > 0"
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10"
-      >
-        <SpaceCard v-for="space in filteredSpaces" :key="space.id" :space="space" />
+      <!-- Skeleton loader -->
+      <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
+        <div v-for="i in 6" :key="i" class="animate-pulse">
+          <div class="aspect-[4/3] rounded-xl bg-surface-muted mb-3"></div>
+          <div class="h-4 bg-surface-muted rounded w-3/4 mb-2"></div>
+          <div class="h-3 bg-surface-muted rounded w-1/2 mb-2"></div>
+          <div class="h-3 bg-surface-muted rounded w-1/3"></div>
+        </div>
       </div>
 
-      <!-- Empty state -->
-      <div v-else class="text-center py-24">
-        <p class="text-2xl mb-2">🔍</p>
-        <p class="text-text-primary font-medium mb-1">No spaces found</p>
-        <p class="text-text-muted text-sm mb-6">Try a different search or category</p>
-        <button
-          @click="searchQuery = ''; activeCategory = 'All'"
-          class="text-sm text-brand hover:text-brand-hover font-medium underline underline-offset-2"
+      <template v-else>
+        <!-- Result count -->
+        <p class="text-sm text-text-muted mb-6">
+          {{ total }} space{{ total !== 1 ? 's' : '' }} available
+        </p>
+
+        <!-- Grid -->
+        <div
+          v-if="spaces.length > 0"
+          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10"
         >
-          Clear filters
-        </button>
-      </div>
+          <SpaceCard v-for="space in spaces" :key="space.id" :space="space" />
+        </div>
+
+        <!-- Empty state -->
+        <div v-else class="text-center py-24">
+          <p class="text-2xl mb-2">🔍</p>
+          <p class="text-text-primary font-medium mb-1">No spaces found</p>
+          <p class="text-text-muted text-sm mb-6">Try a different search or category</p>
+          <button
+            @click="pendingSearch = ''; searchQuery = ''; activeCategory = 'All'"
+            class="text-sm text-brand hover:text-brand-hover font-medium underline underline-offset-2"
+          >
+            Clear filters
+          </button>
+        </div>
+
+        <!-- Load more -->
+        <div v-if="hasMore" class="pt-10 text-center">
+          <button
+            @click="fetchSpaces(false)"
+            :disabled="loadingMore"
+            class="px-8 py-3 text-sm font-medium text-text-secondary border border-border rounded-xl hover:border-text-secondary hover:text-text-primary disabled:opacity-50 transition-colors"
+          >
+            {{ loadingMore ? 'Loading…' : 'Load more' }}
+          </button>
+        </div>
+      </template>
 
     </section>
   </div>

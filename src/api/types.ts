@@ -66,6 +66,14 @@ export interface AvailabilitySlot {
   close_time: string
 }
 
+export interface Page<T> {
+  data: T[]
+  total: number
+  page: number
+  limit: number
+  has_more: boolean
+}
+
 export interface SpaceFormData {
   name: string
   description: string

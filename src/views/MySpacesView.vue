@@ -15,11 +15,32 @@ const { show: showLoading, hide: hideLoading } = useLoading()
 
 const spaces = ref<SpaceResponse[]>([])
 const loading = ref(true)
+const loadingMore = ref(false)
+const page = ref(1)
+const hasMore = ref(false)
 const confirmDeactivateId = ref<string | null>(null)
+
+async function fetchPage(p: number) {
+  const res = await listMySpaces(token.value!, p)
+  spaces.value = p === 1 ? res.data : [...spaces.value, ...res.data]
+  hasMore.value = res.has_more
+  page.value = p
+}
+
+async function loadMore() {
+  loadingMore.value = true
+  try {
+    await fetchPage(page.value + 1)
+  } catch {
+    show('Failed to load more spaces', 'error')
+  } finally {
+    loadingMore.value = false
+  }
+}
 
 onMounted(async () => {
   try {
-    spaces.value = await listMySpaces(token.value!)
+    await fetchPage(1)
   } catch {
     show('Failed to load your spaces', 'error')
   } finally {
@@ -152,6 +173,16 @@ function formatPrice(n: number): string {
               </button>
             </div>
           </div>
+        </div>
+        <!-- Load more -->
+        <div v-if="hasMore" class="pt-2 text-center">
+          <button
+            @click="loadMore"
+            :disabled="loadingMore"
+            class="px-6 py-2.5 text-sm font-medium text-text-secondary border border-border rounded-xl hover:border-text-secondary hover:text-text-primary disabled:opacity-50 transition-colors"
+          >
+            {{ loadingMore ? 'Loading…' : 'Load more' }}
+          </button>
         </div>
       </div>
     </div>

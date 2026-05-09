@@ -1,16 +1,25 @@
 import { apiFetch } from './client'
-import type { SpaceResponse, AvailabilitySlot, SpaceFormData } from './types'
+import type { SpaceResponse, AvailabilitySlot, SpaceFormData, Page } from './types'
 
-export function listSpaces(token: string): Promise<SpaceResponse[]> {
-  return apiFetch('/api/v1/spaces', {}, token)
+export function listSpaces(
+  token: string,
+  page = 1,
+  limit = 20,
+  category?: string,
+  q?: string,
+): Promise<Page<SpaceResponse>> {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+  if (category) params.set('category', category)
+  if (q) params.set('q', q)
+  return apiFetch(`/api/v1/spaces?${params}`, {}, token)
 }
 
 export function getSpace(id: string, token: string): Promise<SpaceResponse> {
   return apiFetch(`/api/v1/spaces/${id}`, {}, token)
 }
 
-export function listMySpaces(token: string): Promise<SpaceResponse[]> {
-  return apiFetch('/api/v1/spaces/mine', {}, token)
+export function listMySpaces(token: string, page = 1, limit = 20): Promise<Page<SpaceResponse>> {
+  return apiFetch(`/api/v1/spaces/mine?page=${page}&limit=${limit}`, {}, token)
 }
 
 export function createSpace(data: SpaceFormData, token: string): Promise<SpaceResponse> {
