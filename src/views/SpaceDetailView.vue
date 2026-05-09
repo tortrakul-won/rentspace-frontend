@@ -2,13 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
-import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 import { getSpace } from '../api/spaces'
 import type { SpaceResponse } from '../api/types'
 
 const route = useRoute()
-const { token } = useAuth()
 const { show } = useToast()
 
 const space = ref<SpaceResponse | null>(null)
@@ -17,7 +15,7 @@ const notFound = ref(false)
 
 onMounted(async () => {
   try {
-    space.value = await getSpace(route.params.id as string, token.value!)
+    space.value = await getSpace(route.params.id as string)
   } catch (e: any) {
     if (e?.status === 404) notFound.value = true
     else show('Failed to load space', 'error')

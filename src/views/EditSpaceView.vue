@@ -37,7 +37,7 @@ const availability = ref<AvailabilitySlot[]>([])
 onMounted(async () => {
   try {
     const [space, avail] = await Promise.all([
-      getSpace(spaceId, token.value!),
+      getSpace(spaceId),
       getAvailability(spaceId, token.value!),
     ])
     form.value = {

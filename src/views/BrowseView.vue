@@ -2,12 +2,10 @@
 import { ref, watch } from 'vue'
 import NavBar from '../components/NavBar.vue'
 import SpaceCard from '../components/SpaceCard.vue'
-import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 import { listSpaces } from '../api/spaces'
 import type { SpaceResponse } from '../api/types'
 
-const { token } = useAuth()
 const { show } = useToast()
 
 const categories = ['All', 'Studio', 'Outdoor', 'Loft', 'Garden', 'Office', 'Café']
@@ -29,7 +27,7 @@ async function fetchSpaces(reset: boolean) {
 
   try {
     const cat = activeCategory.value === 'All' ? undefined : activeCategory.value
-    const res = await listSpaces(token.value!, p, 20, cat, searchQuery.value.trim() || undefined)
+    const res = await listSpaces(p, 20, cat, searchQuery.value.trim() || undefined)
     spaces.value = reset ? res.data : [...spaces.value, ...res.data]
     hasMore.value = res.has_more
     total.value = res.total

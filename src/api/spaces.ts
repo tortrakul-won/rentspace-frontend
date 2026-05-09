@@ -2,7 +2,6 @@ import { apiFetch } from './client'
 import type { SpaceResponse, AvailabilitySlot, SpaceFormData, Page } from './types'
 
 export function listSpaces(
-  token: string,
   page = 1,
   limit = 20,
   category?: string,
@@ -11,11 +10,11 @@ export function listSpaces(
   const params = new URLSearchParams({ page: String(page), limit: String(limit) })
   if (category) params.set('category', category)
   if (q) params.set('q', q)
-  return apiFetch(`/api/v1/spaces?${params}`, {}, token)
+  return apiFetch(`/api/v1/spaces?${params}`)
 }
 
-export function getSpace(id: string, token: string): Promise<SpaceResponse> {
-  return apiFetch(`/api/v1/spaces/${id}`, {}, token)
+export function getSpace(id: string): Promise<SpaceResponse> {
+  return apiFetch(`/api/v1/spaces/${id}`)
 }
 
 export function listMySpaces(token: string, page = 1, limit = 20): Promise<Page<SpaceResponse>> {
