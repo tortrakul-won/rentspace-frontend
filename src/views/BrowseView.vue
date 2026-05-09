@@ -154,7 +154,6 @@ fetchSpaces(true)
             <p class="text-text-primary font-medium mb-1">No spaces available yet</p>
             <p class="text-text-muted text-sm">Check back soon</p>
           </div>
-        </template>
 
           <!-- Load more -->
           <div v-if="hasMore" class="pt-10 text-center">
