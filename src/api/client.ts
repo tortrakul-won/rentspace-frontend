@@ -14,7 +14,9 @@ export async function apiFetch<T>(
   options: RequestInit = {},
   token?: string | null,
 ): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const method = options.method?.toUpperCase() ?? 'GET'
+  const headers: Record<string, string> = {}
+  if (method !== 'GET' && method !== 'HEAD') headers['Content-Type'] = 'application/json'
   if (token) headers['Authorization'] = `Bearer ${token}`
 
   let res: Response
