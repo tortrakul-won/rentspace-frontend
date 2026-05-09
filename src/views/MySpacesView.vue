@@ -16,6 +16,7 @@ const { show: showLoading, hide: hideLoading } = useLoading()
 const spaces = ref<SpaceResponse[]>([])
 const loading = ref(true)
 const loadingMore = ref(false)
+const fetchError = ref(false)
 const page = ref(1)
 const hasMore = ref(false)
 const confirmDeactivateId = ref<string | null>(null)
@@ -42,6 +43,7 @@ onMounted(async () => {
   try {
     await fetchPage(1)
   } catch {
+    fetchError.value = true
     show('Failed to load your spaces', 'error')
   } finally {
     loading.value = false
@@ -59,6 +61,19 @@ async function handleDeactivate(id: string) {
     show(e?.message ?? 'Failed to deactivate', 'error')
   } finally {
     hideLoading()
+  }
+}
+
+async function retryLoad() {
+  fetchError.value = false
+  loading.value = true
+  try {
+    await fetchPage(1)
+  } catch {
+    fetchError.value = true
+    show('Failed to load your spaces', 'error')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -92,6 +107,17 @@ function formatPrice(n: number): string {
           <div class="h-3 bg-surface-muted rounded w-1/2 mb-2"></div>
           <div class="h-3 bg-surface-muted rounded w-1/4"></div>
         </div>
+      </div>
+
+      <!-- Error state -->
+      <div v-else-if="fetchError" class="text-center py-24">
+        <p class="text-text-muted mb-4">Could not load your spaces. Please try again.</p>
+        <button
+          @click="retryLoad"
+          class="text-sm text-brand hover:text-brand-hover font-medium underline underline-offset-2"
+        >
+          Retry
+        </button>
       </div>
 
       <!-- Empty state -->

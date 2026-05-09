@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import NavBar from '../components/NavBar.vue'
 import SpaceCard from '../components/SpaceCard.vue'
 import { useToast } from '../composables/useToast'
@@ -49,7 +49,7 @@ function handleSearch() {
 watch(activeCategory, () => fetchSpaces(true))
 watch(searchQuery, () => fetchSpaces(true))
 
-fetchSpaces(true)
+onMounted(() => fetchSpaces(true))
 </script>
 
 <template>
