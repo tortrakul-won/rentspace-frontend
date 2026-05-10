@@ -69,6 +69,14 @@ export function useAuth() {
     persist()
   }
 
+  async function addProfile(role: 'owner' | 'renter', displayName: string) {
+    if (!token.value) return
+    const profile = await authApi.addProfile({ role, display_name: displayName }, token.value)
+    profiles.value = [...profiles.value, profile]
+    persist()
+    return profile
+  }
+
   function logout() {
     token.value = null
     user.value = null
@@ -87,6 +95,7 @@ export function useAuth() {
     login,
     register,
     switchProfile,
+    addProfile,
     logout,
   }
 }

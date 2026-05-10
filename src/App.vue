@@ -5,17 +5,24 @@ import LoadingOverlay from './components/LoadingOverlay.vue'
 import { useToast } from './composables/useToast'
 import { useLoading } from './composables/useLoading'
 
-const { current, dismiss } = useToast()
+const { toasts, dismiss } = useToast()
 const { loading } = useLoading()
 </script>
 
 <template>
   <LoadingOverlay v-if="loading" />
-  <AppToast
-    v-if="current"
-    :message="current.message"
-    :type="current.type"
-    @close="dismiss"
-  />
+
+  <!-- Toast stack -->
+  <div class="fixed top-4 right-4 z-[100] flex flex-col gap-2">
+    <AppToast
+      v-for="toast in toasts"
+      :key="toast.id"
+      :id="toast.id"
+      :message="toast.message"
+      :type="toast.type"
+      @close="dismiss"
+    />
+  </div>
+
   <RouterView />
 </template>

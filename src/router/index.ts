@@ -16,11 +16,31 @@ export const router = createRouter({
       component: () => import('../views/RegisterView.vue'),
       meta: { requiresGuest: true },
     },
+    {
+      path: '/profiles',
+      component: () => import('../views/ProfilesView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/my-spaces',
+      component: () => import('../views/MySpacesView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/spaces/new',
+      component: () => import('../views/CreateSpaceView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/spaces/:id/edit',
+      component: () => import('../views/EditSpaceView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 
-// Redirect logged-in users away from /login and /register
 router.beforeEach((to) => {
   const token = localStorage.getItem('rs_token')
   if (to.meta.requiresGuest && token) return '/'
+  if (to.meta.requiresAuth && !token) return '/login'
 })

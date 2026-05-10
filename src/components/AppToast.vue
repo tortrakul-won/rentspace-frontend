@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
 
-const props = defineProps<{ message: string; type: 'success' | 'error' }>()
-const emit = defineEmits<{ close: [] }>()
+const props = defineProps<{ id: number; message: string; type: 'success' | 'error' }>()
+const emit = defineEmits<{ close: [id: number] }>()
 
 let timer: ReturnType<typeof setTimeout>
-onMounted(() => { timer = setTimeout(() => emit('close'), 6000) })
+onMounted(() => { timer = setTimeout(() => emit('close', props.id), 6000) })
 onUnmounted(() => clearTimeout(timer))
 </script>
 
 <template>
   <div
     :class="[
-      'fixed top-4 right-4 z-[100] flex items-start gap-3 shadow-lg rounded-xl px-4 py-3.5 w-80 border animate-slide-in',
+      'flex items-start gap-3 shadow-lg rounded-xl px-4 py-3.5 w-80 border animate-slide-in',
       props.type === 'success'
         ? 'bg-surface border-green-200'
         : 'bg-surface border-red-200',
@@ -25,11 +25,9 @@ onUnmounted(() => clearTimeout(timer))
         props.type === 'success' ? 'bg-green-100' : 'bg-red-100',
       ]"
     >
-      <!-- Checkmark -->
-      <svg v-if="props.type === 'success'" :class="['w-3 h-3 text-success']" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+      <svg v-if="props.type === 'success'" class="w-3 h-3 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
       </svg>
-      <!-- X -->
       <svg v-else class="w-3 h-3 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
       </svg>
@@ -45,7 +43,7 @@ onUnmounted(() => clearTimeout(timer))
 
     <!-- Dismiss -->
     <button
-      @click="emit('close')"
+      @click="emit('close', props.id)"
       class="shrink-0 text-text-muted hover:text-text-primary transition-colors mt-0.5"
       aria-label="Dismiss"
     >

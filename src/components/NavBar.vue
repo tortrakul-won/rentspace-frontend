@@ -5,6 +5,7 @@ import { useAuth } from '../composables/useAuth'
 import { useLoading } from '../composables/useLoading'
 import AppLogo from './AppLogo.vue'
 import RoleBadge from './RoleBadge.vue'
+import { minDelay } from '../utils/minDelay'
 
 const router = useRouter()
 const { isAuthenticated, activeProfile, profiles, switchProfile, logout } = useAuth()
@@ -17,14 +18,14 @@ function closeMenu() { menuOpen.value = false }
 async function handleSwitch(profileId: string) {
   closeMenu()
   showLoading()
-  await switchProfile(profileId)
+  await minDelay(switchProfile(profileId), 800)
   hideLoading()
 }
 
 async function handleLogout() {
   closeMenu()
   showLoading()
-  await new Promise(r => setTimeout(r, 500))
+  await minDelay(Promise.resolve(), 500)
   logout()
   await router.push('/')
   hideLoading()
@@ -54,6 +55,11 @@ const avatarInitial = computed(() =>
 
       <nav class="hidden md:flex items-center gap-6 text-sm text-text-secondary">
         <RouterLink to="/" class="hover:text-text-primary transition-colors">Browse</RouterLink>
+        <RouterLink
+          v-if="activeProfile?.role === 'owner'"
+          to="/my-spaces"
+          class="hover:text-text-primary transition-colors"
+        >My Spaces</RouterLink>
         <a href="#" class="hover:text-text-primary transition-colors">How it works</a>
       </nav>
 
@@ -134,6 +140,29 @@ const avatarInitial = computed(() =>
             </button>
             <div class="my-1 border-t border-border" />
           </template>
+
+          <RouterLink
+            v-if="activeProfile?.role === 'owner'"
+            to="/my-spaces"
+            @click="closeMenu"
+            class="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-subtle transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            My Spaces
+          </RouterLink>
+          <RouterLink
+            to="/profiles"
+            @click="closeMenu"
+            class="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-subtle transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            Manage profiles
+          </RouterLink>
+          <div class="my-1 border-t border-border" />
 
           <button
             @click="handleLogout"
