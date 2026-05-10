@@ -2,16 +2,16 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
+import AppSpinner from '../components/AppSpinner.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
-import { useLoading } from '../composables/useLoading'
-import { listMySpaces, deactivateSpace } from '../api/spaces'
+import { minDelay } from '../utils/minDelay'
+import { listMySpaces, deactivateSpace, reactivateSpace, deleteSpacePermanent } from '../api/spaces'
 import type { SpaceResponse } from '../api/types'
 
 const router = useRouter()
 const { token } = useAuth()
 const { show } = useToast()
-const { show: showLoading, hide: hideLoading } = useLoading()
 
 const spaces = ref<SpaceResponse[]>([])
 const loading = ref(true)
@@ -20,6 +20,10 @@ const fetchError = ref(false)
 const page = ref(1)
 const hasMore = ref(false)
 const confirmDeactivateId = ref<string | null>(null)
+const confirmDeleteId = ref<string | null>(null)
+const deactivatingId = ref<string | null>(null)
+const reactivatingId = ref<string | null>(null)
+const deletingId = ref<string | null>(null)
 
 async function fetchPage(p: number) {
   const res = await listMySpaces(token.value!, p)
@@ -53,15 +57,42 @@ onMounted(async () => {
 
 async function handleDeactivate(id: string) {
   confirmDeactivateId.value = null
-  showLoading()
+  deactivatingId.value = id
   try {
-    await deactivateSpace(id, token.value!)
+    await minDelay(deactivateSpace(id, token.value!), 500)
     spaces.value = spaces.value.map((s) => s.id === id ? { ...s, is_active: false } : s)
     show('Space deactivated', 'success')
   } catch (e: any) {
     show(e?.message ?? 'Failed to deactivate', 'error')
   } finally {
-    hideLoading()
+    deactivatingId.value = null
+  }
+}
+
+async function handleReactivate(id: string) {
+  reactivatingId.value = id
+  try {
+    await minDelay(reactivateSpace(id, token.value!), 500)
+    spaces.value = spaces.value.map((s) => s.id === id ? { ...s, is_active: true } : s)
+    show('Space reactivated', 'success')
+  } catch (e: any) {
+    show(e?.message ?? 'Failed to reactivate', 'error')
+  } finally {
+    reactivatingId.value = null
+  }
+}
+
+async function handleDelete(id: string) {
+  confirmDeleteId.value = null
+  deletingId.value = id
+  try {
+    await minDelay(deleteSpacePermanent(id, token.value!), 500)
+    spaces.value = spaces.value.filter((s) => s.id !== id)
+    show('Space deleted', 'success')
+  } catch (e: any) {
+    show(e?.message ?? 'Failed to delete', 'error')
+  } finally {
+    deletingId.value = null
   }
 }
 
@@ -184,7 +215,7 @@ function formatPrice(n: number): string {
             </div>
 
             <!-- Actions -->
-            <div class="flex gap-2 mt-3">
+            <div class="flex gap-2 mt-3 flex-wrap">
               <button
                 @click="router.push(`/spaces/${space.id}/edit`)"
                 class="px-3 py-1.5 text-xs font-medium text-text-secondary border border-border rounded-lg hover:border-text-secondary hover:text-text-primary transition-colors"
@@ -194,9 +225,28 @@ function formatPrice(n: number): string {
               <button
                 v-if="space.is_active"
                 @click="confirmDeactivateId = space.id"
-                class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                :disabled="deactivatingId === space.id"
+                class="px-3 py-1.5 text-xs font-medium text-amber-600 border border-amber-200 rounded-lg hover:bg-amber-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
               >
-                Deactivate
+                <AppSpinner v-if="deactivatingId === space.id" />
+                <span>{{ deactivatingId === space.id ? 'Deactivating…' : 'Deactivate' }}</span>
+              </button>
+              <button
+                v-else
+                @click="handleReactivate(space.id)"
+                :disabled="reactivatingId === space.id"
+                class="px-3 py-1.5 text-xs font-medium text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
+              >
+                <AppSpinner v-if="reactivatingId === space.id" />
+                <span>{{ reactivatingId === space.id ? 'Reactivating…' : 'Reactivate' }}</span>
+              </button>
+              <button
+                @click="confirmDeleteId = space.id"
+                :disabled="deletingId === space.id"
+                class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
+              >
+                <AppSpinner v-if="deletingId === space.id" />
+                <span>{{ deletingId === space.id ? 'Deleting…' : 'Delete' }}</span>
               </button>
             </div>
           </div>
@@ -235,9 +285,39 @@ function formatPrice(n: number): string {
             </button>
             <button
               @click="handleDeactivate(confirmDeactivateId!)"
-              class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors"
+              class="px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-xl hover:bg-amber-600 transition-colors"
             >
               Deactivate
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Confirm delete dialog -->
+    <Teleport to="body">
+      <div
+        v-if="confirmDeleteId"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+        @click.self="confirmDeleteId = null"
+      >
+        <div class="bg-surface rounded-2xl shadow-xl p-6 max-w-sm w-full">
+          <h3 class="text-base font-semibold text-text-primary mb-1">Delete space permanently?</h3>
+          <p class="text-sm text-text-secondary mb-5">
+            This cannot be undone. The listing and all its availability data will be removed.
+          </p>
+          <div class="flex gap-2 justify-end">
+            <button
+              @click="confirmDeleteId = null"
+              class="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              @click="handleDelete(confirmDeleteId!)"
+              class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors"
+            >
+              Delete permanently
             </button>
           </div>
         </div>

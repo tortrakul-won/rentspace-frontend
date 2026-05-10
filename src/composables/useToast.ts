@@ -1,21 +1,23 @@
 import { ref } from 'vue'
 
-interface Toast {
+export interface Toast {
+  id: number
   message: string
   type: 'success' | 'error'
 }
 
-// Module-level singleton so the toast survives route changes
-const current = ref<Toast | null>(null)
+const toasts = ref<Toast[]>([])
+let nextId = 1
 
 export function useToast() {
   function show(message: string, type: 'success' | 'error' = 'success') {
-    current.value = { message, type }
+    const id = nextId++
+    toasts.value.push({ id, message, type })
   }
 
-  function dismiss() {
-    current.value = null
+  function dismiss(id: number) {
+    toasts.value = toasts.value.filter((t) => t.id !== id)
   }
 
-  return { current, show, dismiss }
+  return { toasts, show, dismiss }
 }

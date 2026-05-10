@@ -51,7 +51,7 @@ export interface SpaceResponse {
   images: string[]
   hourly_rate: number
   daily_rate: number
-  min_hours: number
+  min_minutes: number
   capacity: number
   amenities: string[]
   weekend_surcharge_pct: number
@@ -82,7 +82,7 @@ export interface SpaceFormData {
   images: string[]
   hourly_rate: number
   daily_rate: number
-  min_hours: number
+  min_minutes: number
   capacity: number
   amenities: string[]
   weekend_surcharge_pct: number

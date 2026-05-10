@@ -22,7 +22,7 @@ const form = ref<SpaceFormData>({
   images: [],
   hourly_rate: 0,
   daily_rate: 0,
-  min_hours: 1,
+  min_minutes: 60,
   capacity: 1,
   amenities: [],
   weekend_surcharge_pct: 0,

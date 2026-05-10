@@ -27,6 +27,14 @@ onMounted(async () => {
 function formatPrice(n: number): string {
   return '฿' + n.toLocaleString('th-TH')
 }
+
+function formatMinutes(m: number): string {
+  const h = Math.floor(m / 60)
+  const min = m % 60
+  if (h === 0) return `${min} min`
+  if (min === 0) return `${h} hr`
+  return `${h} hr ${min} min`
+}
 </script>
 
 <template>
@@ -103,7 +111,7 @@ function formatPrice(n: number): string {
                 {{ formatPrice(space.hourly_rate) }}<span class="text-base font-normal text-text-muted font-sans"> / hr</span>
               </p>
               <p class="text-text-muted text-sm mt-0.5">
-                {{ formatPrice(space.daily_rate) }} / day · min {{ space.min_hours }} hrs
+                {{ formatPrice(space.daily_rate) }} / day · min {{ formatMinutes(space.min_minutes) }}
                 <template v-if="space.weekend_surcharge_pct > 0">
                   · +{{ space.weekend_surcharge_pct }}% weekends
                 </template>

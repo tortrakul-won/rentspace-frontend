@@ -6,11 +6,12 @@ export function listSpaces(
   limit = 20,
   category?: string,
   q?: string,
+  token?: string | null,
 ): Promise<Page<SpaceResponse>> {
   const params = new URLSearchParams({ page: String(page), limit: String(limit) })
   if (category) params.set('category', category)
   if (q) params.set('q', q)
-  return apiFetch(`/api/v1/spaces?${params}`)
+  return apiFetch(`/api/v1/spaces?${params}`, {}, token)
 }
 
 export function getSpace(id: string): Promise<SpaceResponse> {
@@ -31,6 +32,14 @@ export function updateSpace(id: string, data: SpaceFormData, token: string): Pro
 
 export function deactivateSpace(id: string, token: string): Promise<SpaceResponse> {
   return apiFetch(`/api/v1/spaces/${id}`, { method: 'DELETE' }, token)
+}
+
+export function reactivateSpace(id: string, token: string): Promise<SpaceResponse> {
+  return apiFetch(`/api/v1/spaces/${id}/reactivate`, { method: 'POST' }, token)
+}
+
+export function deleteSpacePermanent(id: string, token: string): Promise<void> {
+  return apiFetch(`/api/v1/spaces/${id}/permanent`, { method: 'DELETE' }, token)
 }
 
 export function getAvailability(id: string, token: string): Promise<AvailabilitySlot[]> {
