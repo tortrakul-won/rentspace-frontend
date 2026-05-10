@@ -74,6 +74,27 @@ export interface Page<T> {
   has_more: boolean
 }
 
+export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled'
+
+export interface BookingResponse {
+  id: string
+  space_id: string
+  renter_id: string
+  start_time: string
+  end_time: string
+  total_price: number
+  platform_fee: number
+  status: BookingStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateBookingRequest {
+  space_id: string
+  start_time: string
+  end_time: string
+}
+
 export interface SpaceFormData {
   name: string
   description: string

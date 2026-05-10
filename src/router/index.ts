@@ -36,6 +36,11 @@ export const router = createRouter({
       component: () => import('../views/EditSpaceView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/my-bookings',
+      component: () => import('../views/MyBookingsView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

@@ -60,6 +60,11 @@ const avatarInitial = computed(() =>
           to="/my-spaces"
           class="hover:text-text-primary transition-colors"
         >My Spaces</RouterLink>
+        <RouterLink
+          v-if="activeProfile?.role === 'renter'"
+          to="/my-bookings"
+          class="hover:text-text-primary transition-colors"
+        >My Bookings</RouterLink>
         <a href="#" class="hover:text-text-primary transition-colors">How it works</a>
       </nav>
 
@@ -151,6 +156,17 @@ const avatarInitial = computed(() =>
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
             My Spaces
+          </RouterLink>
+          <RouterLink
+            v-if="activeProfile?.role === 'renter'"
+            to="/my-bookings"
+            @click="closeMenu"
+            class="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-subtle transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            My Bookings
           </RouterLink>
           <RouterLink
             to="/profiles"
