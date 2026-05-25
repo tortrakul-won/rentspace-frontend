@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
+import { useRoute, useRouter, RouterLink } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
@@ -8,8 +8,10 @@ import { getBooking } from '../api/bookings'
 import { getPaymentConfig } from '../api/config'
 import type { BookingResponse } from '../api/types'
 import type { PaymentConfig } from '../api/config'
+import { useBookingStatus, RENTER_STATUS_LABEL } from '../composables/useBookingStatus'
 
 const route = useRoute()
+const router = useRouter()
 const { token } = useAuth()
 const { show } = useToast()
 
@@ -28,6 +30,13 @@ async function loadBooking(id: string) {
   ])
   if (bookingResult.status === 'fulfilled') {
     booking.value = bookingResult.value
+    const b = booking.value
+    const expected =
+      b.status === 'awaiting_payment' ? `/bookings/${b.id}/payment` :
+      b.status === 'payment_review'   ? `/bookings/${b.id}/review` :
+      b.status === 'cancelled'        ? `/bookings/${b.id}/cancelled` :
+                                        `/bookings/${b.id}/confirm`
+    if (route.path !== expected) router.replace(expected)
   } else {
     const e = bookingResult.reason
     if (e?.status === 404) notFound.value = true
@@ -54,35 +63,13 @@ function formatPrice(n: number) {
   return '฿' + n.toLocaleString('th-TH')
 }
 
-const statusLabel = computed(() => {
-  switch (booking.value?.status) {
-    case 'pending': return 'Awaiting Owner'
-    case 'payment_pending': return 'Payment Required'
-    case 'awaiting_payment': return 'Payment Required'
-    case 'payment_review': return 'Under Review'
-    case 'confirmed': return 'Confirmed'
-    case 'cancelled': return 'Cancelled'
-    case 'completed': return 'Completed'
-    default: return booking.value?.status ?? ''
-  }
-})
-
-const statusClass = computed(() => {
-  switch (booking.value?.status) {
-    case 'pending': return 'bg-amber-100 text-amber-700'
-    case 'payment_pending': return 'bg-blue-100 text-blue-700'
-    case 'awaiting_payment': return 'bg-blue-100 text-blue-700'
-    case 'payment_review': return 'bg-purple-100 text-purple-700'
-    case 'confirmed': return 'bg-green-100 text-green-700'
-    case 'cancelled': return 'bg-red-100 text-red-700'
-    case 'completed': return 'bg-surface-muted text-text-muted'
-    default: return 'bg-surface-muted text-text-muted'
-  }
-})
-
-const isPaymentPending = computed(() => booking.value?.status === 'payment_pending')
-const isCancelled = computed(() => booking.value?.status === 'cancelled')
-const isPending = computed(() => booking.value?.status === 'pending')
+const bookingStatus = computed(() => useBookingStatus(booking.value?.status))
+const statusLabel    = computed(() => RENTER_STATUS_LABEL[booking.value?.status ?? ''] ?? booking.value?.status ?? '')
+const statusClass    = computed(() => bookingStatus.value.badgeClass)
+const isPaymentPending = computed(() => bookingStatus.value.isPaymentDue)
+const isPaymentReview  = computed(() => bookingStatus.value.isUnderReview)
+const isCancelled      = computed(() => bookingStatus.value.isCancelled)
+const isPending        = computed(() => bookingStatus.value.isPending)
 
 const cancelledMessage = computed(() => {
   switch (booking.value?.cancel_reason) {
@@ -117,9 +104,12 @@ const cancelledMessage = computed(() => {
     <div v-else class="max-w-lg mx-auto px-6 py-16">
       <!-- Icon -->
       <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-6"
-           :class="isPaymentPending ? 'bg-blue-100' : isCancelled ? 'bg-red-100' : 'bg-success-light'">
+           :class="isPaymentPending ? 'bg-blue-100' : isPaymentReview ? 'bg-purple-100' : isCancelled ? 'bg-red-100' : 'bg-success-light'">
         <svg v-if="isPaymentPending" class="w-7 h-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+        </svg>
+        <svg v-else-if="isPaymentReview" class="w-7 h-7 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <svg v-else-if="isCancelled" class="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -131,14 +121,16 @@ const cancelledMessage = computed(() => {
 
       <div class="text-center mb-8">
         <h1 class="text-2xl font-bold mb-2" :class="isCancelled ? 'text-red-600' : 'text-text-primary'">
-          {{ isPaymentPending ? 'Complete Your Payment' : isCancelled ? 'Booking Cancelled' : 'Booking Requested' }}
+          <template v-if="isPaymentPending">Complete Your Payment</template>
+          <template v-else-if="isPaymentReview">Payment Under Review</template>
+          <template v-else-if="isCancelled">Booking Cancelled</template>
+          <template v-else>Booking Requested</template>
         </h1>
         <p class="text-text-secondary">
-          {{ isPaymentPending
-            ? 'The owner has accepted your booking. Please transfer the amount below to confirm your slot.'
-            : isCancelled
-              ? cancelledMessage
-              : 'Your request has been sent. The owner will confirm or decline shortly.' }}
+          <template v-if="isPaymentPending">The owner has accepted your booking. Please transfer the amount below to confirm your slot.</template>
+          <template v-else-if="isPaymentReview">Your payment slip has been submitted. Our team will verify and confirm within 24 hours.</template>
+          <template v-else-if="isCancelled">{{ cancelledMessage }}</template>
+          <template v-else>Your request has been sent. The owner will confirm or decline shortly.</template>
         </p>
       </div>
 
@@ -193,6 +185,17 @@ const cancelledMessage = computed(() => {
             <li>You'll receive a notification when confirmed</li>
           </ul>
         </div>
+      </div>
+
+      <!-- Payment review block -->
+      <div v-if="isPaymentReview" class="bg-purple-50 border border-purple-200 rounded-2xl p-6 mb-6 space-y-3">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-purple-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p class="text-sm font-semibold text-purple-800">Slip submitted — awaiting verification</p>
+        </div>
+        <p class="text-sm text-purple-700">Our admin team will review your transfer and confirm the booking within 24 hours. You'll receive a notification once it's done.</p>
       </div>
 
       <!-- Booking summary card -->

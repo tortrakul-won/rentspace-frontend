@@ -8,6 +8,7 @@ import { useToast } from '../composables/useToast'
 import { minDelay } from '../utils/minDelay'
 import { listMyBookings, updateBookingStatus } from '../api/bookings'
 import type { BookingResponse } from '../api/types'
+import { BOOKING_BADGE_CLASS, RENTER_STATUS_LABEL, RENTER_TAB_STATUSES } from '../composables/useBookingStatus'
 
 const { token } = useAuth()
 const { show } = useToast()
@@ -21,18 +22,12 @@ const cancellingId = ref<string | null>(null)
 type BookingTab = 'active' | 'completed' | 'cancelled'
 const activeTab = ref<BookingTab>('active')
 
-const TAB_STATUSES: Record<BookingTab, string[]> = {
-  active:    ['pending', 'payment_pending', 'awaiting_payment', 'payment_review', 'confirmed'],
-  completed: ['completed'],
-  cancelled: ['cancelled'],
-}
-
 const visibleBookings = computed(() =>
-  bookings.value.filter((b) => TAB_STATUSES[activeTab.value].includes(b.status))
+  bookings.value.filter((b) => RENTER_TAB_STATUSES[activeTab.value].includes(b.status))
 )
 
 function tabCount(tab: BookingTab) {
-  return bookings.value.filter((b) => TAB_STATUSES[tab].includes(b.status)).length
+  return bookings.value.filter((b) => RENTER_TAB_STATUSES[tab].includes(b.status)).length
 }
 
 async function loadBookings() {
@@ -73,16 +68,6 @@ function formatDateTime(iso: string) {
 
 function formatPrice(n: number) {
   return '฿' + n.toLocaleString('th-TH')
-}
-
-const STATUS_META: Record<string, { label: string; classes: string }> = {
-  pending:          { label: 'Awaiting Owner',      classes: 'bg-amber-100 text-amber-700' },
-  payment_pending:  { label: 'Pay Now',             classes: 'bg-blue-100 text-blue-700' },
-  awaiting_payment: { label: 'Upload Payment Slip', classes: 'bg-blue-100 text-blue-700' },
-  payment_review:   { label: 'Under Review',        classes: 'bg-purple-100 text-purple-700' },
-  confirmed:        { label: 'Confirmed',           classes: 'bg-emerald-100 text-emerald-700' },
-  completed:        { label: 'Completed',           classes: 'bg-surface-muted text-text-secondary' },
-  cancelled:        { label: 'Cancelled',           classes: 'bg-red-100 text-red-600' },
 }
 
 const TABS: { key: BookingTab; label: string }[] = [
@@ -175,19 +160,26 @@ const TABS: { key: BookingTab; label: string }[] = [
                     <p class="text-sm text-text-muted">{{ formatDateTime(booking.start_time) }} → {{ formatDateTime(booking.end_time) }}</p>
                     <p class="font-mono font-semibold text-text-primary">{{ formatPrice(booking.total_price) }}</p>
                   </div>
-                  <span :class="['text-xs font-medium px-2.5 py-1 rounded-full shrink-0', STATUS_META[booking.status]?.classes]">
-                    {{ STATUS_META[booking.status]?.label }}
+                  <span :class="['text-xs font-medium px-2.5 py-1 rounded-full shrink-0', BOOKING_BADGE_CLASS[booking.status]]">
+                    {{ RENTER_STATUS_LABEL[booking.status] }}
                   </span>
                 </div>
 
                 <!-- Actions -->
                 <div v-if="['pending', 'payment_pending', 'awaiting_payment', 'cancelled'].includes(booking.status)" class="mt-3 flex gap-2 flex-wrap items-center">
                   <RouterLink
-                    v-if="['payment_pending', 'awaiting_payment'].includes(booking.status)"
-                    :to="`/bookings/${booking.id}/confirm`"
+                    v-if="booking.status === 'awaiting_payment' || booking.status === 'payment_pending'"
+                    :to="`/bookings/${booking.id}/payment`"
                     class="px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
                   >
                     View Payment Details
+                  </RouterLink>
+                  <RouterLink
+                    v-if="booking.status === 'payment_review'"
+                    :to="`/bookings/${booking.id}/review`"
+                    class="px-3 py-1.5 text-xs font-medium text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors"
+                  >
+                    View Review Status
                   </RouterLink>
                   <RouterLink
                     v-if="booking.status === 'cancelled'"

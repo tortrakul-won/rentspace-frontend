@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { getUnreadCount, listNotifications, markAllNotificationsRead } from '../api/notifications'
+import { BASE } from '../api/client'
 import type { NotificationResponse } from '../api/types'
 
 const emit = defineEmits<{ open: [] }>()
@@ -14,7 +15,9 @@ const route = useRoute()
 const notifOpen = ref(false)
 const unreadCount = ref(0)
 const notifications = ref<NotificationResponse[]>([])
-let pollTimer: ReturnType<typeof setInterval> | null = null
+
+let abortController: AbortController | null = null
+let fallbackTimer: ReturnType<typeof setInterval> | null = null
 
 async function fetchUnreadCount() {
   if (!token.value) return
@@ -22,6 +25,68 @@ async function fetchUnreadCount() {
     const res = await getUnreadCount(token.value)
     unreadCount.value = res.count
   } catch { /* silent */ }
+}
+
+function startFallbackPoll() {
+  if (fallbackTimer) return
+  fetchUnreadCount()
+  fallbackTimer = setInterval(fetchUnreadCount, 30_000)
+}
+
+function clearFallbackPoll() {
+  if (fallbackTimer) { clearInterval(fallbackTimer); fallbackTimer = null }
+}
+
+// Connect via fetch-based SSE so we can send the Authorization header.
+// Falls back to polling if SSE is unavailable (proxy strips chunked, old env, etc.).
+async function connectSSE() {
+  if (!token.value || !isAuthenticated.value) return
+  abortController = new AbortController()
+
+  try {
+    const res = await fetch(`${BASE}/api/v1/notifications/stream`, {
+      headers: { Authorization: `Bearer ${token.value}` },
+      signal: abortController.signal,
+    })
+    if (!res.ok || !res.body) throw new Error('sse-unavailable')
+
+    clearFallbackPoll()
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buf = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += decoder.decode(value, { stream: true })
+      const chunks = buf.split('\n\n')
+      buf = chunks.pop() ?? ''
+      for (const chunk of chunks) {
+        for (const line of chunk.split('\n')) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const evt = JSON.parse(line.slice(6))
+            if (evt.type === 'notification') {
+              unreadCount.value++
+              if (notifOpen.value) {
+                notifications.value = [evt.payload as NotificationResponse, ...notifications.value]
+              }
+            }
+          } catch { /* malformed event */ }
+        }
+      }
+    }
+  } catch (e: any) {
+    if (e?.name === 'AbortError') return // intentional cleanup
+    startFallbackPoll()
+    return
+  }
+
+  // Server closed stream — reconnect after 3 s unless we're unmounting
+  if (!abortController?.signal.aborted) {
+    setTimeout(connectSSE, 3_000)
+  }
 }
 
 async function openNotifs() {
@@ -46,7 +111,6 @@ function handleNotifClick(n: NotificationResponse) {
   closeNotifs()
   const target = notifLink(n)
   if (route.path === target) {
-    // Same route — push with timestamp query to force re-navigation and trigger watchers
     router.push({ path: target, query: { _t: Date.now() } })
   } else {
     router.push(target)
@@ -84,6 +148,8 @@ function notifLink(n: NotificationResponse): string {
   const bookingId = n.booking_id ?? n.payload?.booking_id
   if (OWNER_NOTIF_TYPES.has(n.type)) return '/owner/bookings'
   if (CANCELLED_NOTIF_TYPES.has(n.type)) return bookingId ? `/bookings/${bookingId}/cancelled` : '/my-bookings'
+  if (n.type === 'payment_required') return bookingId ? `/bookings/${bookingId}/payment` : '/my-bookings'
+  if (n.type === 'booking_confirmed') return bookingId ? `/bookings/${bookingId}/confirm` : '/my-bookings'
   if (bookingId) return `/bookings/${bookingId}/confirm`
   return '/my-bookings'
 }
@@ -91,12 +157,13 @@ function notifLink(n: NotificationResponse): string {
 onMounted(() => {
   if (isAuthenticated.value) {
     fetchUnreadCount()
-    pollTimer = setInterval(fetchUnreadCount, 30_000)
+    connectSSE()
   }
 })
 
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
+  abortController?.abort()
+  clearFallbackPoll()
 })
 </script>
 

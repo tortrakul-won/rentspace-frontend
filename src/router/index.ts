@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import BrowseView from '../views/BrowseView.vue'
+import { useAuth } from '../composables/useAuth'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -8,6 +9,16 @@ export const router = createRouter({
     { path: '/spaces/:id', component: () => import('../views/SpaceDetailView.vue') },
     {
       path: '/bookings/:id/confirm',
+      component: () => import('../views/BookingConfirmView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/bookings/:id/payment',
+      component: () => import('../views/BookingConfirmView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/bookings/:id/review',
       component: () => import('../views/BookingConfirmView.vue'),
       meta: { requiresAuth: true },
     },
@@ -65,12 +76,8 @@ export const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  const token = localStorage.getItem('rs_token')
-  if (to.meta.requiresGuest && token) return '/'
-  if (to.meta.requiresAuth && !token) return '/login'
-  if (to.meta.requiresAdmin) {
-    const userRaw = localStorage.getItem('rs_user')
-    const user = userRaw ? JSON.parse(userRaw) : null
-    if (!user?.is_admin) return '/'
-  }
+  const { isAuthenticated, isAdmin } = useAuth()
+  if (to.meta.requiresGuest && isAuthenticated.value) return '/'
+  if (to.meta.requiresAuth && !isAuthenticated.value) return '/login'
+  if (to.meta.requiresAdmin && !isAdmin.value) return '/'
 })
