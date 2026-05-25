@@ -1,5 +1,5 @@
 import { apiFetch } from './client'
-import type { SpaceResponse, AvailabilitySlot, SpaceFormData, Page } from './types'
+import type { SpaceResponse, AvailabilitySlot, SpaceFormData, Page, MergedAvailability } from './types'
 
 export function listSpaces(
   page = 1,
@@ -44,6 +44,10 @@ export function deleteSpacePermanent(id: string, token: string): Promise<void> {
 
 export function getAvailability(id: string, token: string): Promise<AvailabilitySlot[]> {
   return apiFetch(`/api/v1/spaces/${id}/availability`, {}, token)
+}
+
+export function getMergedAvailability(id: string, from: string, to: string, token?: string | null): Promise<MergedAvailability> {
+  return apiFetch(`/api/v1/spaces/${id}/availability?from=${from}&to=${to}`, {}, token)
 }
 
 export function setAvailability(id: string, schedule: AvailabilitySlot[], token: string): Promise<AvailabilitySlot[]> {

@@ -49,8 +49,7 @@ async function handleBook(startTime: string, endTime: string) {
       { space_id: space.value.id, start_time: startTime, end_time: endTime },
       token.value,
     )
-    show('Booking requested! Waiting for owner confirmation.', 'success')
-    router.push('/my-bookings')
+    router.push(`/bookings/${booking.id}/confirm`)
   } catch (e: any) {
     show(e?.message ?? 'Failed to create booking', 'error')
   } finally {
@@ -132,6 +131,7 @@ async function handleBook(startTime: string, endTime: string) {
             :space="space"
             :availability="availability"
             :submitting="submitting"
+            :token="token"
             @book="handleBook"
           />
           <!-- Non-renter placeholder -->

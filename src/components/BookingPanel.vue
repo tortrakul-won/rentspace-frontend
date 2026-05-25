@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import type { SpaceResponse, AvailabilitySlot } from '../api/types'
+import { ref, computed, watch } from 'vue'
+import type { SpaceResponse, AvailabilitySlot, MergedAvailability } from '../api/types'
+import { getMergedAvailability } from '../api/spaces'
 
 const props = defineProps<{
   space: SpaceResponse
   availability: AvailabilitySlot[]
   submitting: boolean
+  token?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -19,12 +21,28 @@ today.setHours(0, 0, 0, 0)
 
 const calendarDate = ref(new Date(today.getFullYear(), today.getMonth(), 1))
 const selectedDate = ref<Date | null>(null)
+const mergedAvail = ref<MergedAvailability>({})
 
 const calendarYear = computed(() => calendarDate.value.getFullYear())
 const calendarMonth = computed(() => calendarDate.value.getMonth())
 const monthLabel = computed(() =>
   calendarDate.value.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
 )
+
+function pad(n: number) { return String(n).padStart(2, '0') }
+
+function fetchMergedAvail() {
+  const y = calendarYear.value
+  const m = calendarMonth.value
+  const from = `${y}-${pad(m + 1)}-01`
+  const lastDay = new Date(y, m + 1, 0).getDate()
+  const to = `${y}-${pad(m + 1)}-${pad(lastDay)}`
+  getMergedAvailability(props.space.id, from, to, props.token)
+    .then(data => { mergedAvail.value = data })
+    .catch(() => { /* silent — fall back to weekly schedule */ })
+}
+
+watch(calendarDate, fetchMergedAvail, { immediate: true })
 
 function prevMonth() {
   calendarDate.value = new Date(calendarYear.value, calendarMonth.value - 1, 1)
@@ -37,20 +55,29 @@ function nextMonth() {
 const calendarDays = computed(() => {
   const first = new Date(calendarYear.value, calendarMonth.value, 1).getDay()
   const daysInMonth = new Date(calendarYear.value, calendarMonth.value + 1, 0).getDate()
-  const days: Array<{ date: Date | null; open: boolean; past: boolean }> = []
-  for (let i = 0; i < first; i++) days.push({ date: null, open: false, past: false })
+  const days: Array<{ date: Date | null; open: boolean; past: boolean; hasBlocks: boolean }> = []
+  for (let i = 0; i < first; i++) days.push({ date: null, open: false, past: false, hasBlocks: false })
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(calendarYear.value, calendarMonth.value, d)
+    const dateKey = `${calendarYear.value}-${pad(calendarMonth.value + 1)}-${pad(d)}`
     const dow = date.getDay()
-    const open = props.availability.some((s) => s.day_of_week === dow)
     const past = date < today
-    days.push({ date, open, past })
+    // Use merged availability if available, else fall back to weekly schedule
+    const merged = mergedAvail.value[dateKey]
+    const open = merged ? merged.open : props.availability.some((s) => s.day_of_week === dow)
+    const hasBlocks = merged ? merged.blocked_ranges.length > 0 : false
+    days.push({ date, open, past, hasBlocks })
   }
   return days
 })
 
 const openSlot = computed(() => {
   if (!selectedDate.value) return null
+  const dateKey = selectedDate.value.toISOString().slice(0, 10)
+  const merged = mergedAvail.value[dateKey]
+  if (merged?.open_time && merged?.close_time) {
+    return { open_time: merged.open_time, close_time: merged.close_time }
+  }
   return props.availability.find((s) => s.day_of_week === selectedDate.value!.getDay()) ?? null
 })
 
@@ -71,7 +98,36 @@ function isSelected(date: Date | null) {
 const startTime = ref('')
 const endTime = ref('')
 
-const minEndTime = computed(() => startTime.value || '00:00')
+const timeSlots = computed(() => {
+  if (!openSlot.value) return []
+  const [oh, om] = (openSlot.value.open_time ?? '00:00').split(':').map(Number)
+  const [ch, cm] = (openSlot.value.close_time ?? '23:30').split(':').map(Number)
+  const slots: string[] = []
+  let mins = oh * 60 + om
+  const endMins = ch * 60 + cm
+  while (mins <= endMins) {
+    slots.push(`${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`)
+    mins += 30
+  }
+  return slots
+})
+
+const endTimeSlots = computed(() =>
+  timeSlots.value.filter(t => {
+    if (!startTime.value) return true
+    const [sh, sm] = startTime.value.split(':').map(Number)
+    const [th, tm] = t.split(':').map(Number)
+    return th * 60 + tm > sh * 60 + sm
+  })
+)
+
+watch(startTime, () => {
+  if (endTime.value) {
+    const [sh, sm] = startTime.value.split(':').map(Number)
+    const [eh, em] = endTime.value.split(':').map(Number)
+    if (eh * 60 + em <= sh * 60 + sm) endTime.value = ''
+  }
+})
 
 // ── Price preview ────────────────────────────────────────────────────────────
 
@@ -140,7 +196,7 @@ function handleSubmit() {
   const d = selectedDate.value
   const pad = (n: number) => String(n).padStart(2, '0')
   const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-  emit('book', `${dateStr}T${startTime.value}:00`, `${dateStr}T${endTime.value}:00`)
+  emit('book', `${dateStr}T${startTime.value}:00Z`, `${dateStr}T${endTime.value}:00Z`)
 }
 
 const DAYS_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
@@ -192,7 +248,7 @@ const DAYS_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
           :disabled="!cell.date || !cell.open || cell.past"
           @click="selectDay(cell.date, cell.open, cell.past)"
           :class="[
-            'h-8 w-full text-xs rounded-lg transition-colors',
+            'h-8 w-full text-xs rounded-lg transition-colors relative',
             !cell.date ? 'invisible' : '',
             cell.date && isSelected(cell.date)
               ? 'bg-brand text-text-inverse font-semibold'
@@ -202,11 +258,23 @@ const DAYS_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
           ]"
         >
           {{ cell.date?.getDate() }}
+          <!-- Dot indicates partial bookings on that day -->
+          <span
+            v-if="cell.date && cell.open && !cell.past && cell.hasBlocks && !isSelected(cell.date)"
+            class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-accent"
+          />
         </button>
       </div>
 
       <!-- Legend -->
-      <p class="text-xs text-text-muted mt-2">Greyed dates are closed or past.</p>
+      <div class="flex items-center gap-3 mt-2 text-xs text-text-muted">
+        <span>Greyed = closed or past</span>
+        <span class="flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-accent inline-block" />
+          partially booked
+        </span>
+      </div>
+
     </div>
 
     <!-- Time inputs -->
@@ -220,23 +288,23 @@ const DAYS_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="block text-xs text-text-muted mb-1">Start</label>
-          <input
-            type="time"
+          <select
             v-model="startTime"
-            :min="openSlot?.open_time"
-            :max="openSlot?.close_time"
             class="w-full px-3 py-2 text-sm text-text-primary bg-surface border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand transition"
-          />
+          >
+            <option value="" disabled>Select time</option>
+            <option v-for="t in timeSlots" :key="t" :value="t">{{ t }}</option>
+          </select>
         </div>
         <div>
           <label class="block text-xs text-text-muted mb-1">End</label>
-          <input
-            type="time"
+          <select
             v-model="endTime"
-            :min="minEndTime"
-            :max="openSlot?.close_time"
             class="w-full px-3 py-2 text-sm text-text-primary bg-surface border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand transition"
-          />
+          >
+            <option value="" disabled>Select time</option>
+            <option v-for="t in endTimeSlots" :key="t" :value="t">{{ t }}</option>
+          </select>
         </div>
       </div>
     </div>

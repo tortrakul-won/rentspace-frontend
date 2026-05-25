@@ -3,6 +3,7 @@ export interface UserResponse {
   email: string
   full_name: string
   phone?: string
+  is_admin: boolean
   created_at: string
 }
 
@@ -66,6 +67,21 @@ export interface AvailabilitySlot {
   close_time: string
 }
 
+export interface BlockedRange {
+  from: string
+  to: string
+  type: 'booking' | 'block'
+}
+
+export interface DayAvailability {
+  open: boolean
+  open_time?: string
+  close_time?: string
+  blocked_ranges: BlockedRange[]
+}
+
+export type MergedAvailability = Record<string, DayAvailability>
+
 export interface Page<T> {
   data: T[]
   total: number
@@ -74,7 +90,7 @@ export interface Page<T> {
   has_more: boolean
 }
 
-export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled'
+export type BookingStatus = 'pending' | 'payment_pending' | 'confirmed' | 'completed' | 'cancelled'
 
 export interface BookingResponse {
   id: string
@@ -85,14 +101,31 @@ export interface BookingResponse {
   total_price: number
   platform_fee: number
   status: BookingStatus
+  cancel_reason?: string | null
   created_at: string
   updated_at: string
+  // enriched fields (present on list endpoints, absent on single GET)
+  space_name?: string
+  space_location?: string
+  space_images?: string[]
+  renter_name?: string
 }
 
 export interface CreateBookingRequest {
   space_id: string
   start_time: string
   end_time: string
+}
+
+export interface NotificationResponse {
+  id: string
+  profile_id: string
+  type: string
+  payload: Record<string, string>
+  booking_id: string | null
+  read_at: string | null
+  superseded_at: string | null
+  created_at: string
 }
 
 export interface SpaceFormData {

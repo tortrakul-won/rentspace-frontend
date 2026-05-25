@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import AppSpinner from '../components/AppSpinner.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 import { minDelay } from '../utils/minDelay'
-import { listMyBookings, updateBookingStatus } from '../api/bookings'
-import type { BookingResponse } from '../api/types'
+import { listOwnerBookings, updateBookingStatus } from '../api/bookings'
+import type { BookingResponse, BookingStatus } from '../api/types'
 
 const { token } = useAuth()
 const { show } = useToast()
@@ -15,13 +14,15 @@ const { show } = useToast()
 const bookings = ref<BookingResponse[]>([])
 const loading = ref(true)
 const fetchError = ref(false)
-const cancellingId = ref<string | null>(null)
+const actionId = ref<string | null>(null)
+const actionStatus = ref<BookingStatus | null>(null)
 
-type BookingTab = 'active' | 'completed' | 'cancelled'
-const activeTab = ref<BookingTab>('active')
+type OwnerTab = 'requests' | 'active' | 'completed' | 'cancelled'
+const activeTab = ref<OwnerTab>('requests')
 
-const TAB_STATUSES: Record<BookingTab, string[]> = {
-  active:    ['pending', 'payment_pending', 'confirmed'],
+const TAB_STATUSES: Record<OwnerTab, string[]> = {
+  requests:  ['pending'],
+  active:    ['payment_pending', 'confirmed'],
   completed: ['completed'],
   cancelled: ['cancelled'],
 }
@@ -30,13 +31,20 @@ const visibleBookings = computed(() =>
   bookings.value.filter((b) => TAB_STATUSES[activeTab.value].includes(b.status))
 )
 
-function tabCount(tab: BookingTab) {
+function tabCount(tab: OwnerTab) {
   return bookings.value.filter((b) => TAB_STATUSES[tab].includes(b.status)).length
 }
 
+const TABS: { key: OwnerTab; label: string }[] = [
+  { key: 'requests',  label: 'Requests' },
+  { key: 'active',    label: 'Active' },
+  { key: 'completed', label: 'Completed' },
+  { key: 'cancelled', label: 'Cancelled' },
+]
+
 onMounted(async () => {
   try {
-    bookings.value = await listMyBookings(token.value!)
+    bookings.value = await listOwnerBookings(token.value!)
   } catch {
     fetchError.value = true
     show('Failed to load bookings', 'error')
@@ -45,16 +53,19 @@ onMounted(async () => {
   }
 })
 
-async function handleCancel(id: string) {
-  cancellingId.value = id
+async function handleAction(id: string, status: BookingStatus) {
+  actionId.value = id
+  actionStatus.value = status
   try {
-    await minDelay(updateBookingStatus(id, 'cancelled', token.value!), 500)
-    bookings.value = bookings.value.map((b) => b.id === id ? { ...b, status: 'cancelled' } : b)
-    show('Booking cancelled', 'success')
+    const updated = await minDelay(updateBookingStatus(id, status, token.value!), 500)
+    bookings.value = bookings.value.map((b) => b.id === id ? updated : b)
+    const label = status === 'payment_pending' ? 'Booking accepted — awaiting payment' : 'Booking declined'
+    show(label, 'success')
   } catch (e: any) {
-    show(e?.message ?? 'Failed to cancel', 'error')
+    show(e?.message ?? 'Action failed', 'error')
   } finally {
-    cancellingId.value = null
+    actionId.value = null
+    actionStatus.value = null
   }
 }
 
@@ -70,18 +81,19 @@ function formatPrice(n: number) {
 }
 
 const STATUS_META: Record<string, { label: string; classes: string }> = {
-  pending:         { label: 'Awaiting Owner',   classes: 'bg-amber-100 text-amber-700' },
-  payment_pending: { label: 'Pay Now',          classes: 'bg-blue-100 text-blue-700' },
+  pending:         { label: 'Pending',          classes: 'bg-amber-100 text-amber-700' },
+  payment_pending: { label: 'Awaiting Payment', classes: 'bg-blue-100 text-blue-700' },
   confirmed:       { label: 'Confirmed',        classes: 'bg-emerald-100 text-emerald-700' },
   completed:       { label: 'Completed',        classes: 'bg-surface-muted text-text-secondary' },
   cancelled:       { label: 'Cancelled',        classes: 'bg-red-100 text-red-600' },
 }
 
-const TABS: { key: BookingTab; label: string }[] = [
-  { key: 'active',    label: 'Active' },
-  { key: 'completed', label: 'Completed' },
-  { key: 'cancelled', label: 'Cancelled' },
-]
+const TAB_EMPTY: Record<OwnerTab, string> = {
+  requests:  'No pending requests',
+  active:    'No active bookings',
+  completed: 'No completed bookings',
+  cancelled: 'No cancelled bookings',
+}
 </script>
 
 <template>
@@ -89,7 +101,7 @@ const TABS: { key: BookingTab; label: string }[] = [
     <NavBar />
 
     <div class="max-w-3xl mx-auto px-6 py-10">
-      <h1 class="text-2xl font-bold text-text-primary mb-6">My Bookings</h1>
+      <h1 class="text-2xl font-bold text-text-primary mb-6">Booking Requests</h1>
 
       <!-- Skeleton -->
       <div v-if="loading" class="space-y-4">
@@ -103,8 +115,10 @@ const TABS: { key: BookingTab; label: string }[] = [
       <!-- Error -->
       <div v-else-if="fetchError" class="text-center py-24">
         <p class="text-text-muted mb-4">Could not load bookings.</p>
-        <button @click="() => { fetchError = false; loading = true; listMyBookings(token!).then(b => bookings = b).catch(() => fetchError = true).finally(() => loading = false) }"
-          class="text-sm text-brand hover:text-brand-hover font-medium underline underline-offset-2">
+        <button
+          @click="() => { fetchError = false; loading = true; listOwnerBookings(token!).then(b => bookings = b).catch(() => fetchError = true).finally(() => loading = false) }"
+          class="text-sm text-brand hover:text-brand-hover font-medium underline underline-offset-2"
+        >
           Retry
         </button>
       </div>
@@ -134,12 +148,10 @@ const TABS: { key: BookingTab; label: string }[] = [
           </button>
         </div>
 
-        <!-- Empty state per tab -->
+        <!-- Empty state -->
         <div v-if="visibleBookings.length === 0" class="text-center py-24">
-          <p class="text-text-primary font-medium mb-1">
-            {{ activeTab === 'active' ? 'No active bookings' : activeTab === 'completed' ? 'No completed bookings' : 'No cancelled bookings' }}
-          </p>
-          <p v-if="activeTab === 'active'" class="text-text-muted text-sm">Browse spaces and request your first booking</p>
+          <p class="text-text-primary font-medium mb-1">{{ TAB_EMPTY[activeTab] }}</p>
+          <p v-if="activeTab === 'requests'" class="text-text-muted text-sm">New booking requests from renters will appear here</p>
         </div>
 
         <!-- List -->
@@ -164,6 +176,7 @@ const TABS: { key: BookingTab; label: string }[] = [
                 <div class="flex items-start justify-between gap-3 flex-wrap">
                   <div class="space-y-0.5 min-w-0">
                     <p v-if="booking.space_name" class="font-medium text-text-primary truncate">{{ booking.space_name }}</p>
+                    <p v-if="booking.renter_name" class="text-xs text-text-muted">by {{ booking.renter_name }}</p>
                     <p class="text-sm text-text-muted">{{ formatDateTime(booking.start_time) }} → {{ formatDateTime(booking.end_time) }}</p>
                     <p class="font-mono font-semibold text-text-primary">{{ formatPrice(booking.total_price) }}</p>
                   </div>
@@ -172,30 +185,37 @@ const TABS: { key: BookingTab; label: string }[] = [
                   </span>
                 </div>
 
-                <!-- Actions -->
-                <div v-if="['pending', 'payment_pending', 'cancelled'].includes(booking.status)" class="mt-3 flex gap-2 flex-wrap items-center">
-                  <RouterLink
-                    v-if="booking.status === 'payment_pending'"
-                    :to="`/bookings/${booking.id}/confirm`"
-                    class="px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
-                  >
-                    View Payment Details
-                  </RouterLink>
-                  <RouterLink
-                    v-if="booking.status === 'cancelled'"
-                    :to="`/bookings/${booking.id}/cancelled`"
-                    class="px-3 py-1.5 text-xs font-medium text-text-muted border border-border rounded-lg hover:bg-surface-muted transition-colors"
-                  >
-                    View Details
-                  </RouterLink>
+                <!-- Actions: Requests tab -->
+                <div v-if="activeTab === 'requests'" class="mt-3 flex gap-2 flex-wrap">
                   <button
-                    v-if="['pending', 'payment_pending'].includes(booking.status)"
-                    @click="handleCancel(booking.id)"
-                    :disabled="cancellingId === booking.id"
+                    @click="handleAction(booking.id, 'payment_pending')"
+                    :disabled="actionId === booking.id"
+                    class="px-3 py-1.5 text-xs font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
+                  >
+                    <AppSpinner v-if="actionId === booking.id && actionStatus === 'payment_pending'" />
+                    <span>{{ actionId === booking.id && actionStatus === 'payment_pending' ? 'Processing…' : 'Accept' }}</span>
+                  </button>
+                  <button
+                    @click="handleAction(booking.id, 'cancelled')"
+                    :disabled="actionId === booking.id"
                     class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
                   >
-                    <AppSpinner v-if="cancellingId === booking.id" />
-                    <span>{{ cancellingId === booking.id ? 'Cancelling…' : 'Cancel booking' }}</span>
+                    <AppSpinner v-if="actionId === booking.id && actionStatus === 'cancelled'" />
+                    <span>{{ actionId === booking.id && actionStatus === 'cancelled' ? 'Processing…' : 'Decline' }}</span>
+                  </button>
+                </div>
+
+                <!-- Actions: Active tab -->
+                <div v-if="activeTab === 'active'" class="mt-3 flex gap-2 flex-wrap">
+                  <p v-if="booking.status === 'payment_pending'" class="text-xs text-text-muted">Awaiting renter payment. Admin verifies transfer.</p>
+                  <p v-if="booking.status === 'confirmed'" class="text-xs text-text-muted">Confirmed. Completes automatically after end time.</p>
+                  <button
+                    @click="handleAction(booking.id, 'cancelled')"
+                    :disabled="actionId === booking.id"
+                    class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
+                  >
+                    <AppSpinner v-if="actionId === booking.id" />
+                    <span>{{ actionId === booking.id ? 'Processing…' : 'Cancel' }}</span>
                   </button>
                 </div>
               </div>
