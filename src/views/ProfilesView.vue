@@ -7,9 +7,10 @@ import { useLoading } from '../composables/useLoading'
 import { ApiError } from '../api/client'
 import RoleBadge from '../components/RoleBadge.vue'
 import { minDelay } from '../utils/minDelay'
+import { updateProfile } from '../api/auth'
 
 const router = useRouter()
-const { profiles, activeProfile, switchProfile, addProfile } = useAuth()
+const { profiles, activeProfile, switchProfile, addProfile, token } = useAuth()
 const { show } = useToast()
 const { show: showLoading, hide: hideLoading } = useLoading()
 
@@ -52,6 +53,36 @@ async function handleSwitch(profileId: string) {
   await minDelay(switchProfile(profileId), 800)
   await router.push('/')
   hideLoading()
+}
+
+const editingLineID = ref(false)
+const lineIDInput = ref('')
+const lineIDSaving = ref(false)
+
+function startEditLineID() {
+  lineIDInput.value = activeProfile.value?.line_id ?? ''
+  editingLineID.value = true
+}
+
+function cancelEditLineID() {
+  editingLineID.value = false
+}
+
+async function saveLineID() {
+  lineIDSaving.value = true
+  try {
+    const trimmed = lineIDInput.value.trim()
+    await updateProfile({ line_id: trimmed }, token.value!)
+    // Update reactive profiles array so activeProfile computed reflects change
+    const idx = profiles.value.findIndex((p) => p.id === activeProfile.value?.id)
+    if (idx !== -1) profiles.value[idx] = { ...profiles.value[idx], line_id: trimmed || undefined }
+    show('Line ID updated', 'success')
+    editingLineID.value = false
+  } catch (err) {
+    show(err instanceof ApiError ? err.message : 'Failed to update Line ID', 'error')
+  } finally {
+    lineIDSaving.value = false
+  }
 }
 
 async function handleAdd(role: Role) {
@@ -160,6 +191,50 @@ async function handleAdd(role: Role) {
               >
                 Add
               </button>
+            </div>
+          </div>
+
+          <!-- Line ID section (active profile only) -->
+          <div v-if="profileForRole(role)?.id === activeProfile?.id" class="mt-4 pt-4 border-t border-border">
+            <div v-if="!editingLineID" class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs font-medium text-text-secondary">Line ID</p>
+                <p v-if="activeProfile?.line_id" class="text-sm text-text-primary mt-0.5">{{ activeProfile.line_id }}</p>
+                <p v-else class="text-sm text-text-muted italic mt-0.5">Not set</p>
+              </div>
+              <button
+                @click="startEditLineID"
+                class="text-xs font-medium text-brand hover:text-brand-hover transition-colors shrink-0"
+              >
+                {{ activeProfile?.line_id ? 'Edit' : 'Add' }}
+              </button>
+            </div>
+            <div v-else>
+              <label class="block text-sm font-medium text-text-primary mb-1.5">Line ID</label>
+              <input
+                v-model="lineIDInput"
+                type="text"
+                placeholder="@yourlineid"
+                autofocus
+                class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
+                @keydown.enter="saveLineID"
+                @keydown.escape="cancelEditLineID"
+              />
+              <div class="flex gap-2 mt-3">
+                <button
+                  @click="saveLineID"
+                  :disabled="lineIDSaving"
+                  class="px-4 py-2 bg-brand text-text-inverse text-sm font-medium rounded-xl hover:bg-brand-hover transition-colors disabled:opacity-50"
+                >
+                  {{ lineIDSaving ? 'Saving…' : 'Save' }}
+                </button>
+                <button
+                  @click="cancelEditLineID"
+                  class="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
 

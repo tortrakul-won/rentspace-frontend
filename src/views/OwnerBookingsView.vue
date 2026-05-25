@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import AppSpinner from '../components/AppSpinner.vue'
 import { useAuth } from '../composables/useAuth'
@@ -10,6 +11,7 @@ import type { BookingResponse, BookingStatus } from '../api/types'
 
 const { token } = useAuth()
 const { show } = useToast()
+const route = useRoute()
 
 const bookings = ref<BookingResponse[]>([])
 const loading = ref(true)
@@ -22,7 +24,7 @@ const activeTab = ref<OwnerTab>('requests')
 
 const TAB_STATUSES: Record<OwnerTab, string[]> = {
   requests:  ['pending'],
-  active:    ['payment_pending', 'confirmed'],
+  active:    ['payment_pending', 'awaiting_payment', 'payment_review', 'confirmed'],
   completed: ['completed'],
   cancelled: ['cancelled'],
 }
@@ -42,7 +44,9 @@ const TABS: { key: OwnerTab; label: string }[] = [
   { key: 'cancelled', label: 'Cancelled' },
 ]
 
-onMounted(async () => {
+async function loadBookings() {
+  loading.value = true
+  fetchError.value = false
   try {
     bookings.value = await listOwnerBookings(token.value!)
   } catch {
@@ -51,7 +55,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadBookings)
+watch(() => route.fullPath, loadBookings)
 
 async function handleAction(id: string, status: BookingStatus) {
   actionId.value = id
@@ -59,7 +66,7 @@ async function handleAction(id: string, status: BookingStatus) {
   try {
     const updated = await minDelay(updateBookingStatus(id, status, token.value!), 500)
     bookings.value = bookings.value.map((b) => b.id === id ? updated : b)
-    const label = status === 'payment_pending' ? 'Booking accepted — awaiting payment' : 'Booking declined'
+    const label = status === 'awaiting_payment' ? 'Booking accepted — awaiting payment slip' : 'Booking declined'
     show(label, 'success')
   } catch (e: any) {
     show(e?.message ?? 'Action failed', 'error')
@@ -82,7 +89,9 @@ function formatPrice(n: number) {
 
 const STATUS_META: Record<string, { label: string; classes: string }> = {
   pending:         { label: 'Pending',          classes: 'bg-amber-100 text-amber-700' },
-  payment_pending: { label: 'Awaiting Payment', classes: 'bg-blue-100 text-blue-700' },
+  payment_pending:  { label: 'Awaiting Payment', classes: 'bg-blue-100 text-blue-700' },
+  awaiting_payment: { label: 'Awaiting Slip',    classes: 'bg-blue-100 text-blue-700' },
+  payment_review:   { label: 'Under Review',     classes: 'bg-purple-100 text-purple-700' },
   confirmed:       { label: 'Confirmed',        classes: 'bg-emerald-100 text-emerald-700' },
   completed:       { label: 'Completed',        classes: 'bg-surface-muted text-text-secondary' },
   cancelled:       { label: 'Cancelled',        classes: 'bg-red-100 text-red-600' },
@@ -188,12 +197,12 @@ const TAB_EMPTY: Record<OwnerTab, string> = {
                 <!-- Actions: Requests tab -->
                 <div v-if="activeTab === 'requests'" class="mt-3 flex gap-2 flex-wrap">
                   <button
-                    @click="handleAction(booking.id, 'payment_pending')"
+                    @click="handleAction(booking.id, 'awaiting_payment')"
                     :disabled="actionId === booking.id"
                     class="px-3 py-1.5 text-xs font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
                   >
-                    <AppSpinner v-if="actionId === booking.id && actionStatus === 'payment_pending'" />
-                    <span>{{ actionId === booking.id && actionStatus === 'payment_pending' ? 'Processing…' : 'Accept' }}</span>
+                    <AppSpinner v-if="actionId === booking.id && actionStatus === 'awaiting_payment'" />
+                    <span>{{ actionId === booking.id && actionStatus === 'awaiting_payment' ? 'Processing…' : 'Accept' }}</span>
                   </button>
                   <button
                     @click="handleAction(booking.id, 'cancelled')"
@@ -206,13 +215,14 @@ const TAB_EMPTY: Record<OwnerTab, string> = {
                 </div>
 
                 <!-- Actions: Active tab -->
-                <div v-if="activeTab === 'active'" class="mt-3 flex gap-2 flex-wrap">
-                  <p v-if="booking.status === 'payment_pending'" class="text-xs text-text-muted">Awaiting renter payment. Admin verifies transfer.</p>
+                <div v-if="activeTab === 'active'" class="mt-3 flex items-center justify-between gap-3">
+                  <p v-if="['awaiting_payment', 'payment_pending'].includes(booking.status)" class="text-xs text-text-muted">Awaiting renter payment slip. Admin verifies transfer.</p>
+                  <p v-if="booking.status === 'payment_review'" class="text-xs text-text-muted">Payment slip submitted. Under admin review.</p>
                   <p v-if="booking.status === 'confirmed'" class="text-xs text-text-muted">Confirmed. Completes automatically after end time.</p>
                   <button
                     @click="handleAction(booking.id, 'cancelled')"
                     :disabled="actionId === booking.id"
-                    class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
+                    class="shrink-0 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
                   >
                     <AppSpinner v-if="actionId === booking.id" />
                     <span>{{ actionId === booking.id ? 'Processing…' : 'Cancel' }}</span>

@@ -33,6 +33,10 @@ export function adminApproveBooking(id: string, token: string): Promise<BookingR
   return apiFetch(`/api/v1/admin/bookings/${id}/approve`, { method: 'POST' }, token)
 }
 
-export function adminRejectBooking(id: string, token: string): Promise<BookingResponse> {
-  return apiFetch(`/api/v1/admin/bookings/${id}/reject`, { method: 'POST' }, token)
+export function adminRejectRetryBooking(id: string, token: string): Promise<BookingResponse> {
+  return apiFetch(`/api/v1/admin/bookings/${id}/reject-retry`, { method: 'POST' }, token)
+}
+
+export function adminRejectPermanentBooking(id: string, token: string): Promise<BookingResponse> {
+  return apiFetch(`/api/v1/admin/bookings/${id}/reject-permanent`, { method: 'POST' }, token)
 }

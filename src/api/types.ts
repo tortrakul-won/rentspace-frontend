@@ -15,6 +15,7 @@ export interface ProfileResponse {
   tax_id?: string
   is_juristic: boolean
   is_vat_registered: boolean
+  line_id?: string
   created_at: string
 }
 
@@ -90,7 +91,7 @@ export interface Page<T> {
   has_more: boolean
 }
 
-export type BookingStatus = 'pending' | 'payment_pending' | 'confirmed' | 'completed' | 'cancelled'
+export type BookingStatus = 'pending' | 'payment_pending' | 'awaiting_payment' | 'payment_review' | 'confirmed' | 'completed' | 'cancelled'
 
 export interface BookingResponse {
   id: string
@@ -102,6 +103,9 @@ export interface BookingResponse {
   platform_fee: number
   status: BookingStatus
   cancel_reason?: string | null
+  refund_status?: string | null
+  process_expires_at?: string | null
+  slip_url?: string | null
   created_at: string
   updated_at: string
   // enriched fields (present on list endpoints, absent on single GET)
