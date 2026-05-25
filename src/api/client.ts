@@ -2,10 +2,14 @@ export const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
 
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  code: string
+  details: Record<string, string>
+  constructor(status: number, message: string, code = '', details: Record<string, string> = {}) {
     super(message)
     this.status = status
+    this.code = code
     this.name = 'ApiError'
+    this.details = details
   }
 }
 
@@ -28,12 +32,16 @@ export async function apiFetch<T>(
 
   if (!res.ok) {
     let message = `Request failed (${res.status})`
+    let code = ''
+    let details: Record<string, string> = {}
     try {
       const body = await res.json()
       if (body.message) message = body.message
       else if (body.error) message = body.error
+      if (body.code) code = body.code
+      if (body.details && typeof body.details === 'object') details = body.details
     } catch {}
-    throw new ApiError(res.status, message)
+    throw new ApiError(res.status, message, code, details)
   }
 
   if (res.status === 204 || res.headers.get('content-length') === '0') return undefined as T
