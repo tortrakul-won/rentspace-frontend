@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import { useAuth } from '../composables/useAuth'
@@ -21,12 +21,20 @@ const notFound = ref(false)
 const paymentConfig = ref<PaymentConfig>({ promptpay_number: '', promptpay_name: '', promptpay_qr_url: '' })
 
 const slipFile = ref<File | null>(null)
+const slipPreviewUrl = ref<string | null>(null)
 const submittingSlip = ref(false)
 
 function onSlipChange(e: Event) {
   const input = e.target as HTMLInputElement
-  slipFile.value = input.files?.[0] ?? null
+  if (slipPreviewUrl.value) URL.revokeObjectURL(slipPreviewUrl.value)
+  const file = input.files?.[0] ?? null
+  slipFile.value = file
+  slipPreviewUrl.value = file ? URL.createObjectURL(file) : null
 }
+
+onUnmounted(() => {
+  if (slipPreviewUrl.value) URL.revokeObjectURL(slipPreviewUrl.value)
+})
 
 async function submitSlip() {
   if (!booking.value || !token.value) return
@@ -211,12 +219,20 @@ const cancelledMessage = computed(() => {
         <!-- Slip upload -->
         <div class="border-t border-border pt-5 space-y-3">
           <p class="text-sm font-medium text-text-primary">Upload Transfer Slip</p>
-          <label class="flex flex-col items-center justify-center gap-2 w-full h-28 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-brand hover:bg-surface-subtle transition-colors">
-            <svg class="w-6 h-6 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-            </svg>
-            <span class="text-xs text-text-muted">{{ slipFile ? slipFile.name : 'Click to select image (JPEG, PNG, WebP, HEIC)' }}</span>
+          <label class="block w-full cursor-pointer">
             <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" class="hidden" @change="onSlipChange" />
+            <img
+              v-if="slipPreviewUrl"
+              :src="slipPreviewUrl"
+              alt="Transfer slip preview"
+              class="w-full rounded-xl object-contain border border-border"
+            />
+            <div v-else class="flex flex-col items-center justify-center gap-2 w-full h-28 border-2 border-dashed border-border rounded-xl hover:border-brand hover:bg-surface-subtle transition-colors">
+              <svg class="w-6 h-6 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+              </svg>
+              <span class="text-xs text-text-muted">Click to select image (JPEG, PNG, WebP, HEIC)</span>
+            </div>
           </label>
           <button
             @click="submitSlip"
