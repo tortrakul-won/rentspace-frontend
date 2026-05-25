@@ -183,11 +183,18 @@ const TABS: { key: BookingTab; label: string }[] = [
                 <!-- Actions -->
                 <div v-if="['pending', 'payment_pending', 'awaiting_payment', 'cancelled'].includes(booking.status)" class="mt-3 flex gap-2 flex-wrap items-center">
                   <RouterLink
-                    v-if="['payment_pending', 'awaiting_payment'].includes(booking.status)"
-                    :to="`/bookings/${booking.id}/confirm`"
+                    v-if="booking.status === 'awaiting_payment' || booking.status === 'payment_pending'"
+                    :to="`/bookings/${booking.id}/payment`"
                     class="px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
                   >
                     View Payment Details
+                  </RouterLink>
+                  <RouterLink
+                    v-if="booking.status === 'payment_review'"
+                    :to="`/bookings/${booking.id}/review`"
+                    class="px-3 py-1.5 text-xs font-medium text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors"
+                  >
+                    View Review Status
                   </RouterLink>
                   <RouterLink
                     v-if="booking.status === 'cancelled'"

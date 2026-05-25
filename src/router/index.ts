@@ -12,6 +12,16 @@ export const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/bookings/:id/payment',
+      component: () => import('../views/BookingConfirmView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/bookings/:id/review',
+      component: () => import('../views/BookingConfirmView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/bookings/:id/cancelled',
       component: () => import('../views/BookingConfirmView.vue'),
       meta: { requiresAuth: true },
