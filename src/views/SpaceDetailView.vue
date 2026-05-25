@@ -1,21 +1,38 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
+import { useRoute, useRouter, RouterLink } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
+import BookingPanel from '../components/BookingPanel.vue'
+import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
-import { getSpace } from '../api/spaces'
-import type { SpaceResponse } from '../api/types'
+import { getSpace, getAvailability } from '../api/spaces'
+import { createBooking } from '../api/bookings'
+import type { SpaceResponse, AvailabilitySlot } from '../api/types'
 
 const route = useRoute()
+const router = useRouter()
+const { token, activeProfile } = useAuth()
 const { show } = useToast()
 
 const space = ref<SpaceResponse | null>(null)
+const availability = ref<AvailabilitySlot[]>([])
 const loading = ref(true)
 const notFound = ref(false)
+const submitting = ref(false)
+
+const isRenter = computed(() => activeProfile.value?.role === 'renter')
+
+import { computed } from 'vue'
 
 onMounted(async () => {
   try {
-    space.value = await getSpace(route.params.id as string)
+    const id = route.params.id as string
+    const [s, avail] = await Promise.all([
+      getSpace(id),
+      getAvailability(id, token.value ?? '').catch(() => []),
+    ])
+    space.value = s
+    availability.value = avail
   } catch (e: any) {
     if (e?.status === 404) notFound.value = true
     else show('Failed to load space', 'error')
@@ -24,16 +41,20 @@ onMounted(async () => {
   }
 })
 
-function formatPrice(n: number): string {
-  return '฿' + n.toLocaleString('th-TH')
-}
-
-function formatMinutes(m: number): string {
-  const h = Math.floor(m / 60)
-  const min = m % 60
-  if (h === 0) return `${min} min`
-  if (min === 0) return `${h} hr`
-  return `${h} hr ${min} min`
+async function handleBook(startTime: string, endTime: string) {
+  if (!token.value || !space.value) return
+  submitting.value = true
+  try {
+    const booking = await createBooking(
+      { space_id: space.value.id, start_time: startTime, end_time: endTime },
+      token.value,
+    )
+    router.push(`/bookings/${booking.id}/confirm`)
+  } catch (e: any) {
+    show(e?.message ?? 'Failed to create booking', 'error')
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -103,24 +124,22 @@ function formatMinutes(m: number): string {
           </div>
         </div>
 
-        <!-- Booking panel -->
+        <!-- Booking panel (renter only) -->
         <div class="lg:col-span-1">
-          <div class="border border-border rounded-2xl p-6 sticky top-24">
-            <div class="mb-4">
-              <p class="text-2xl font-bold font-mono text-text-primary">
-                {{ formatPrice(space.hourly_rate) }}<span class="text-base font-normal text-text-muted font-sans"> / hr</span>
-              </p>
-              <p class="text-text-muted text-sm mt-0.5">
-                {{ formatPrice(space.daily_rate) }} / day · min {{ formatMinutes(space.min_minutes) }}
-                <template v-if="space.weekend_surcharge_pct > 0">
-                  · +{{ space.weekend_surcharge_pct }}% weekends
-                </template>
-              </p>
-            </div>
-            <button class="w-full bg-brand text-text-inverse py-3 rounded-xl font-medium hover:bg-brand-hover transition-colors">
-              Request to book
-            </button>
-            <p class="text-xs text-text-muted text-center mt-3">You won't be charged yet</p>
+          <BookingPanel
+            v-if="isRenter"
+            :space="space"
+            :availability="availability"
+            :submitting="submitting"
+            :token="token"
+            @book="handleBook"
+          />
+          <!-- Non-renter placeholder -->
+          <div v-else class="border border-border rounded-2xl p-6 sticky top-24 text-center space-y-3">
+            <p class="text-2xl font-bold font-mono text-text-primary">
+              ฿{{ space.hourly_rate.toLocaleString('th-TH') }}<span class="text-base font-normal text-text-muted font-sans"> / hr</span>
+            </p>
+            <p class="text-sm text-text-muted">Switch to a renter profile to book this space.</p>
           </div>
         </div>
       </div>

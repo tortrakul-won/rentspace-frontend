@@ -30,7 +30,8 @@ export async function apiFetch<T>(
     let message = `Request failed (${res.status})`
     try {
       const body = await res.json()
-      if (body.error) message = body.error
+      if (body.message) message = body.message
+      else if (body.error) message = body.error
     } catch {}
     throw new ApiError(res.status, message)
   }

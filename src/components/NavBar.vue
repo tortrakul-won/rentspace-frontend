@@ -5,10 +5,11 @@ import { useAuth } from '../composables/useAuth'
 import { useLoading } from '../composables/useLoading'
 import AppLogo from './AppLogo.vue'
 import RoleBadge from './RoleBadge.vue'
+import NotificationBell from './NotificationBell.vue'
 import { minDelay } from '../utils/minDelay'
 
 const router = useRouter()
-const { isAuthenticated, activeProfile, profiles, switchProfile, logout } = useAuth()
+const { isAuthenticated, isAdmin, activeProfile, profiles, switchProfile, logout, token } = useAuth()
 const { show: showLoading, hide: hideLoading } = useLoading()
 
 const menuOpen = ref(false)
@@ -31,7 +32,6 @@ async function handleLogout() {
   hideLoading()
 }
 
-// Generate a deterministic background colour from the display name
 const avatarColor = computed(() => {
   const colors = [
     'bg-violet-500', 'bg-blue-500', 'bg-emerald-500',
@@ -60,6 +60,16 @@ const avatarInitial = computed(() =>
           to="/my-spaces"
           class="hover:text-text-primary transition-colors"
         >My Spaces</RouterLink>
+        <RouterLink
+          v-if="activeProfile?.role === 'owner'"
+          to="/owner/bookings"
+          class="hover:text-text-primary transition-colors"
+        >Bookings</RouterLink>
+        <RouterLink
+          v-if="activeProfile?.role === 'renter'"
+          to="/my-bookings"
+          class="hover:text-text-primary transition-colors"
+        >My Bookings</RouterLink>
         <a href="#" class="hover:text-text-primary transition-colors">How it works</a>
       </nav>
 
@@ -81,6 +91,9 @@ const avatarInitial = computed(() =>
 
       <!-- Authenticated -->
       <div v-else class="flex items-center gap-3 ml-auto relative">
+
+        <NotificationBell @open="menuOpen = false" />
+
         <button
           @click="menuOpen = !menuOpen"
           class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-surface-muted transition-colors"
@@ -153,6 +166,28 @@ const avatarInitial = computed(() =>
             My Spaces
           </RouterLink>
           <RouterLink
+            v-if="activeProfile?.role === 'owner'"
+            to="/owner/bookings"
+            @click="closeMenu"
+            class="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-subtle transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Booking Requests
+          </RouterLink>
+          <RouterLink
+            v-if="activeProfile?.role === 'renter'"
+            to="/my-bookings"
+            @click="closeMenu"
+            class="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-subtle transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            My Bookings
+          </RouterLink>
+          <RouterLink
             to="/profiles"
             @click="closeMenu"
             class="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-subtle transition-colors"
@@ -163,6 +198,19 @@ const avatarInitial = computed(() =>
             Manage profiles
           </RouterLink>
           <div class="my-1 border-t border-border" />
+
+          <!-- Admin link -->
+          <RouterLink
+            v-if="isAdmin"
+            to="/admin"
+            @click="closeMenu"
+            class="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors font-medium"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Admin Dashboard
+          </RouterLink>
 
           <button
             @click="handleLogout"
@@ -175,7 +223,7 @@ const avatarInitial = computed(() =>
           </button>
         </div>
 
-        <!-- Click outside to close -->
+        <!-- Click outside to close menu -->
         <div v-if="menuOpen" class="fixed inset-0 z-40" @click="closeMenu" />
       </div>
 

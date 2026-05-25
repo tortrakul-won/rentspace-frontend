@@ -23,6 +23,7 @@ function persist() {
 
 export function useAuth() {
   const isAuthenticated = computed(() => token.value !== null)
+  const isAdmin = computed(() => user.value?.is_admin === true)
   const activeProfile = computed(
     () => profiles.value.find((p) => p.id === activeProfileId.value) ?? null,
   )
@@ -91,6 +92,7 @@ export function useAuth() {
     profiles,
     activeProfileId,
     isAuthenticated,
+    isAdmin,
     activeProfile,
     login,
     register,

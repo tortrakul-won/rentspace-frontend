@@ -7,6 +7,16 @@ export const router = createRouter({
     { path: '/', component: BrowseView },
     { path: '/spaces/:id', component: () => import('../views/SpaceDetailView.vue') },
     {
+      path: '/bookings/:id/confirm',
+      component: () => import('../views/BookingConfirmView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/bookings/:id/cancelled',
+      component: () => import('../views/BookingConfirmView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/login',
       component: () => import('../views/LoginView.vue'),
       meta: { requiresGuest: true },
@@ -36,6 +46,21 @@ export const router = createRouter({
       component: () => import('../views/EditSpaceView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/my-bookings',
+      component: () => import('../views/MyBookingsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/owner/bookings',
+      component: () => import('../views/OwnerBookingsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin',
+      component: () => import('../views/AdminView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
   ],
 })
 
@@ -43,4 +68,9 @@ router.beforeEach((to) => {
   const token = localStorage.getItem('rs_token')
   if (to.meta.requiresGuest && token) return '/'
   if (to.meta.requiresAuth && !token) return '/login'
+  if (to.meta.requiresAdmin) {
+    const userRaw = localStorage.getItem('rs_user')
+    const user = userRaw ? JSON.parse(userRaw) : null
+    if (!user?.is_admin) return '/'
+  }
 })
