@@ -96,10 +96,8 @@ async function openNotifs() {
     if (token.value) {
       try {
         notifications.value = await listNotifications(token.value)
-        if (unreadCount.value > 0) {
-          await markAllNotificationsRead(token.value)
-          unreadCount.value = 0
-        }
+        await markAllNotificationsRead(token.value)
+        unreadCount.value = 0
       } catch { /* silent */ }
     }
   }
@@ -109,6 +107,7 @@ function closeNotifs() { notifOpen.value = false }
 
 function handleNotifClick(n: NotificationResponse) {
   closeNotifs()
+  unreadCount.value = 0
   const target = notifLink(n)
   if (route.path === target) {
     router.push({ path: target, query: { _t: Date.now() } })
@@ -217,10 +216,13 @@ onUnmounted(() => {
             </div>
           </li>
           <!-- Superseded: grayed, not clickable -->
-          <div v-else class="px-3 py-3 pl-5">
-            <p v-if="n.payload?.space_name" class="text-xs font-medium text-text-muted opacity-60 mb-0.5 leading-none">{{ n.payload.space_name }}</p>
-            <p class="text-sm text-text-muted leading-snug">{{ notifLabel(n.type) }}</p>
-            <p class="text-xs text-text-muted opacity-60 mt-1">{{ notifTime(n.created_at) }}</p>
+          <div v-else class="flex items-start gap-2 px-3 py-3 opacity-50">
+            <span class="mt-1.5 w-1.5 h-1.5 shrink-0"></span>
+            <div>
+              <p v-if="n.payload?.space_name" class="text-xs font-medium text-text-muted mb-0.5 leading-none">{{ n.payload.space_name }}</p>
+              <p class="text-sm text-text-muted leading-snug">{{ notifLabel(n.type) }}</p>
+              <p class="text-xs text-text-muted mt-1">{{ notifTime(n.created_at) }}</p>
+            </div>
           </div>
         </template>
       </ul>

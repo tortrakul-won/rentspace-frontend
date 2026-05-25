@@ -4,7 +4,7 @@ import { useRoute, useRouter, RouterLink } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
-import { getBooking } from '../api/bookings'
+import { getBooking, updateBookingStatus } from '../api/bookings'
 import { getPaymentConfig } from '../api/config'
 import type { BookingResponse } from '../api/types'
 import type { PaymentConfig } from '../api/config'
@@ -19,6 +19,28 @@ const booking = ref<BookingResponse | null>(null)
 const loading = ref(true)
 const notFound = ref(false)
 const paymentConfig = ref<PaymentConfig>({ promptpay_number: '', promptpay_name: '', promptpay_qr_url: '' })
+
+const slipFile = ref<File | null>(null)
+const submittingSlip = ref(false)
+
+function onSlipChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  slipFile.value = input.files?.[0] ?? null
+}
+
+async function submitSlip() {
+  if (!booking.value || !token.value) return
+  submittingSlip.value = true
+  try {
+    await updateBookingStatus(booking.value.id, 'payment_review', token.value)
+    show('Slip submitted — awaiting admin review', 'success')
+    await loadBooking(booking.value.id)
+  } catch (e: any) {
+    show(e?.message ?? 'Failed to submit slip', 'error')
+  } finally {
+    submittingSlip.value = false
+  }
+}
 
 async function loadBooking(id: string) {
   loading.value = true
@@ -180,10 +202,29 @@ const cancelledMessage = computed(() => {
         <div class="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700 space-y-1">
           <p class="font-medium">After transferring:</p>
           <ul class="list-disc list-inside space-y-0.5 text-blue-600">
-            <li>Keep your transfer slip as proof</li>
-            <li>Our team will verify and confirm within 24 hours</li>
+            <li>Take a screenshot or photo of your transfer slip</li>
+            <li>Upload it below — our team verifies within 24 hours</li>
             <li>You'll receive a notification when confirmed</li>
           </ul>
+        </div>
+
+        <!-- Slip upload -->
+        <div class="border-t border-border pt-5 space-y-3">
+          <p class="text-sm font-medium text-text-primary">Upload Transfer Slip</p>
+          <label class="flex flex-col items-center justify-center gap-2 w-full h-28 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-brand hover:bg-surface-subtle transition-colors">
+            <svg class="w-6 h-6 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            <span class="text-xs text-text-muted">{{ slipFile ? slipFile.name : 'Click to select image or PDF' }}</span>
+            <input type="file" accept="image/*,application/pdf" class="hidden" @change="onSlipChange" />
+          </label>
+          <button
+            @click="submitSlip"
+            :disabled="!slipFile || submittingSlip"
+            class="w-full py-3 rounded-xl font-medium text-sm transition-colors disabled:opacity-50 bg-brand text-text-inverse hover:bg-brand-hover"
+          >
+            {{ submittingSlip ? 'Submitting…' : 'Submit Slip for Review' }}
+          </button>
         </div>
       </div>
 
