@@ -23,6 +23,7 @@ const paymentConfig = ref<PaymentConfig>({ promptpay_number: '', promptpay_name:
 const slipFile = ref<File | null>(null)
 const slipPreviewUrl = ref<string | null>(null)
 const submittingSlip = ref(false)
+const slipInput = ref<HTMLInputElement | null>(null)
 
 function onSlipChange(e: Event) {
   const input = e.target as HTMLInputElement
@@ -30,6 +31,13 @@ function onSlipChange(e: Event) {
   const file = input.files?.[0] ?? null
   slipFile.value = file
   slipPreviewUrl.value = file ? URL.createObjectURL(file) : null
+}
+
+function clearSlip() {
+  if (slipPreviewUrl.value) URL.revokeObjectURL(slipPreviewUrl.value)
+  slipFile.value = null
+  slipPreviewUrl.value = null
+  if (slipInput.value) slipInput.value.value = ''
 }
 
 onUnmounted(() => {
@@ -219,21 +227,34 @@ const cancelledMessage = computed(() => {
         <!-- Slip upload -->
         <div class="border-t border-border pt-5 space-y-3">
           <p class="text-sm font-medium text-text-primary">Upload Transfer Slip</p>
-          <label class="block w-full cursor-pointer">
-            <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" class="hidden" @change="onSlipChange" />
-            <img
+          <div class="relative">
+            <label class="block w-full cursor-pointer">
+              <input ref="slipInput" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" class="hidden" @change="onSlipChange" />
+              <img
+                v-if="slipPreviewUrl"
+                :src="slipPreviewUrl"
+                alt="Transfer slip preview"
+                class="w-full rounded-xl object-contain border border-border"
+              />
+              <div v-else class="flex flex-col items-center justify-center gap-2 w-full h-28 border-2 border-dashed border-border rounded-xl hover:border-brand hover:bg-surface-subtle transition-colors">
+                <svg class="w-6 h-6 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+                <span class="text-xs text-text-muted">Click to select image (JPEG, PNG, WebP, HEIC)</span>
+              </div>
+            </label>
+            <button
               v-if="slipPreviewUrl"
-              :src="slipPreviewUrl"
-              alt="Transfer slip preview"
-              class="w-full rounded-xl object-contain border border-border"
-            />
-            <div v-else class="flex flex-col items-center justify-center gap-2 w-full h-28 border-2 border-dashed border-border rounded-xl hover:border-brand hover:bg-surface-subtle transition-colors">
-              <svg class="w-6 h-6 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+              @click.prevent="clearSlip"
+              type="button"
+              class="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors"
+              aria-label="Remove slip"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
-              <span class="text-xs text-text-muted">Click to select image (JPEG, PNG, WebP, HEIC)</span>
-            </div>
-          </label>
+            </button>
+          </div>
           <button
             @click="submitSlip"
             :disabled="!slipFile || submittingSlip"
