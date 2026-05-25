@@ -39,3 +39,7 @@ export function currentUser(token: string): Promise<CurrentUserResponse> {
 export function addProfile(body: { role: string; display_name: string }, token: string): Promise<import('./types').ProfileResponse> {
   return apiFetch('/api/v1/auth/profiles', { method: 'POST', body: JSON.stringify(body) }, token)
 }
+
+export function updateProfile(body: { display_name?: string; line_id?: string }, token: string): Promise<import('./types').ProfileResponse> {
+  return apiFetch('/api/v1/auth/profile', { method: 'PATCH', body: JSON.stringify(body) }, token)
+}

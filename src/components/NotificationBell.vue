@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { getUnreadCount, listNotifications, markAllNotificationsRead } from '../api/notifications'
 import type { NotificationResponse } from '../api/types'
@@ -8,6 +8,8 @@ import type { NotificationResponse } from '../api/types'
 const emit = defineEmits<{ open: [] }>()
 
 const { token, isAuthenticated } = useAuth()
+const router = useRouter()
+const route = useRoute()
 
 const notifOpen = ref(false)
 const unreadCount = ref(0)
@@ -39,6 +41,17 @@ async function openNotifs() {
 }
 
 function closeNotifs() { notifOpen.value = false }
+
+function handleNotifClick(n: NotificationResponse) {
+  closeNotifs()
+  const target = notifLink(n)
+  if (route.path === target) {
+    // Same route — push with timestamp query to force re-navigation and trigger watchers
+    router.push({ path: target, query: { _t: Date.now() } })
+  } else {
+    router.push(target)
+  }
+}
 
 const NOTIF_LABEL: Record<string, string> = {
   booking_request:             'New booking request',
@@ -123,11 +136,10 @@ onUnmounted(() => {
       <ul v-else class="max-h-80 overflow-y-auto divide-y divide-border">
         <template v-for="n in notifications" :key="n.id">
           <!-- Active: clickable -->
-          <RouterLink
+          <li
             v-if="!n.superseded_at"
-            :to="notifLink(n)"
-            @click="closeNotifs"
-            class="flex items-start gap-2 px-3 py-3 hover:bg-surface-subtle transition-colors cursor-pointer"
+            @click="handleNotifClick(n)"
+            class="flex items-start gap-2 px-3 py-3 hover:bg-surface-subtle transition-colors cursor-pointer list-none"
           >
             <span v-if="!n.read_at" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand shrink-0"></span>
             <span v-else class="mt-1.5 w-1.5 h-1.5 shrink-0"></span>
@@ -136,7 +148,7 @@ onUnmounted(() => {
               <p class="text-sm font-medium text-text-primary leading-snug">{{ notifLabel(n.type) }}</p>
               <p class="text-xs text-text-muted mt-1">{{ notifTime(n.created_at) }}</p>
             </div>
-          </RouterLink>
+          </li>
           <!-- Superseded: grayed, not clickable -->
           <div v-else class="px-3 py-3 pl-5">
             <p v-if="n.payload?.space_name" class="text-xs font-medium text-text-muted opacity-60 mb-0.5 leading-none">{{ n.payload.space_name }}</p>

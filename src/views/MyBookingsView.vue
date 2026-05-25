@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import AppSpinner from '../components/AppSpinner.vue'
 import { useAuth } from '../composables/useAuth'
@@ -11,6 +11,7 @@ import type { BookingResponse } from '../api/types'
 
 const { token } = useAuth()
 const { show } = useToast()
+const route = useRoute()
 
 const bookings = ref<BookingResponse[]>([])
 const loading = ref(true)
@@ -21,7 +22,7 @@ type BookingTab = 'active' | 'completed' | 'cancelled'
 const activeTab = ref<BookingTab>('active')
 
 const TAB_STATUSES: Record<BookingTab, string[]> = {
-  active:    ['pending', 'payment_pending', 'confirmed'],
+  active:    ['pending', 'payment_pending', 'awaiting_payment', 'payment_review', 'confirmed'],
   completed: ['completed'],
   cancelled: ['cancelled'],
 }
@@ -34,7 +35,9 @@ function tabCount(tab: BookingTab) {
   return bookings.value.filter((b) => TAB_STATUSES[tab].includes(b.status)).length
 }
 
-onMounted(async () => {
+async function loadBookings() {
+  loading.value = true
+  fetchError.value = false
   try {
     bookings.value = await listMyBookings(token.value!)
   } catch {
@@ -43,7 +46,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadBookings)
+watch(() => route.fullPath, loadBookings)
 
 async function handleCancel(id: string) {
   cancellingId.value = id
@@ -70,11 +76,13 @@ function formatPrice(n: number) {
 }
 
 const STATUS_META: Record<string, { label: string; classes: string }> = {
-  pending:         { label: 'Awaiting Owner',   classes: 'bg-amber-100 text-amber-700' },
-  payment_pending: { label: 'Pay Now',          classes: 'bg-blue-100 text-blue-700' },
-  confirmed:       { label: 'Confirmed',        classes: 'bg-emerald-100 text-emerald-700' },
-  completed:       { label: 'Completed',        classes: 'bg-surface-muted text-text-secondary' },
-  cancelled:       { label: 'Cancelled',        classes: 'bg-red-100 text-red-600' },
+  pending:          { label: 'Awaiting Owner',      classes: 'bg-amber-100 text-amber-700' },
+  payment_pending:  { label: 'Pay Now',             classes: 'bg-blue-100 text-blue-700' },
+  awaiting_payment: { label: 'Upload Payment Slip', classes: 'bg-blue-100 text-blue-700' },
+  payment_review:   { label: 'Under Review',        classes: 'bg-purple-100 text-purple-700' },
+  confirmed:        { label: 'Confirmed',           classes: 'bg-emerald-100 text-emerald-700' },
+  completed:        { label: 'Completed',           classes: 'bg-surface-muted text-text-secondary' },
+  cancelled:        { label: 'Cancelled',           classes: 'bg-red-100 text-red-600' },
 }
 
 const TABS: { key: BookingTab; label: string }[] = [
@@ -173,9 +181,9 @@ const TABS: { key: BookingTab; label: string }[] = [
                 </div>
 
                 <!-- Actions -->
-                <div v-if="['pending', 'payment_pending', 'cancelled'].includes(booking.status)" class="mt-3 flex gap-2 flex-wrap items-center">
+                <div v-if="['pending', 'payment_pending', 'awaiting_payment', 'cancelled'].includes(booking.status)" class="mt-3 flex gap-2 flex-wrap items-center">
                   <RouterLink
-                    v-if="booking.status === 'payment_pending'"
+                    v-if="['payment_pending', 'awaiting_payment'].includes(booking.status)"
                     :to="`/bookings/${booking.id}/confirm`"
                     class="px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
                   >
@@ -189,7 +197,7 @@ const TABS: { key: BookingTab; label: string }[] = [
                     View Details
                   </RouterLink>
                   <button
-                    v-if="['pending', 'payment_pending'].includes(booking.status)"
+                    v-if="['pending', 'payment_pending', 'awaiting_payment'].includes(booking.status)"
                     @click="handleCancel(booking.id)"
                     :disabled="cancellingId === booking.id"
                     class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"

@@ -58,6 +58,8 @@ const statusLabel = computed(() => {
   switch (booking.value?.status) {
     case 'pending': return 'Awaiting Owner'
     case 'payment_pending': return 'Payment Required'
+    case 'awaiting_payment': return 'Payment Required'
+    case 'payment_review': return 'Under Review'
     case 'confirmed': return 'Confirmed'
     case 'cancelled': return 'Cancelled'
     case 'completed': return 'Completed'
@@ -69,6 +71,8 @@ const statusClass = computed(() => {
   switch (booking.value?.status) {
     case 'pending': return 'bg-amber-100 text-amber-700'
     case 'payment_pending': return 'bg-blue-100 text-blue-700'
+    case 'awaiting_payment': return 'bg-blue-100 text-blue-700'
+    case 'payment_review': return 'bg-purple-100 text-purple-700'
     case 'confirmed': return 'bg-green-100 text-green-700'
     case 'cancelled': return 'bg-red-100 text-red-700'
     case 'completed': return 'bg-surface-muted text-text-muted'

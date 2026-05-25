@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
-import { adminListPaymentPending, adminApproveBooking, adminRejectBooking } from '../api/bookings'
+import { adminListPaymentPending, adminApproveBooking, adminRejectRetryBooking, adminRejectPermanentBooking } from '../api/bookings'
 import type { BookingResponse } from '../api/types'
 
 const router = useRouter()
@@ -49,12 +49,25 @@ async function approve(id: string) {
   }
 }
 
-async function reject(id: string) {
+async function rejectRetry(id: string) {
   processing.value = id
   try {
-    await adminRejectBooking(id, token.value!)
+    await adminRejectRetryBooking(id, token.value!)
     bookings.value = bookings.value.filter((b) => b.id !== id)
-    show('Booking rejected', 'success')
+    show('Slip rejected — renter can retry', 'success')
+  } catch (e: any) {
+    show(e?.message ?? 'Failed to reject', 'error')
+  } finally {
+    processing.value = null
+  }
+}
+
+async function rejectPermanent(id: string) {
+  processing.value = id
+  try {
+    await adminRejectPermanentBooking(id, token.value!)
+    bookings.value = bookings.value.filter((b) => b.id !== id)
+    show('Booking rejected permanently', 'success')
   } catch (e: any) {
     show(e?.message ?? 'Failed to reject', 'error')
   } finally {
@@ -165,7 +178,7 @@ function formatPrice(n: number) {
                 </div>
               </div>
 
-              <div class="mt-4 flex gap-3">
+              <div class="mt-4 flex gap-2 flex-wrap">
                 <button
                   @click="approve(b.id)"
                   :disabled="processing === b.id"
@@ -174,11 +187,18 @@ function formatPrice(n: number) {
                   {{ processing === b.id ? 'Processing…' : 'Confirm Payment' }}
                 </button>
                 <button
-                  @click="reject(b.id)"
+                  @click="rejectRetry(b.id)"
+                  :disabled="processing === b.id"
+                  class="flex-1 border border-amber-300 text-amber-700 py-2 rounded-xl text-sm font-medium hover:bg-amber-50 transition-colors disabled:opacity-50"
+                >
+                  Reject — Retry
+                </button>
+                <button
+                  @click="rejectPermanent(b.id)"
                   :disabled="processing === b.id"
                   class="flex-1 border border-border text-text-secondary py-2 rounded-xl text-sm font-medium hover:bg-surface-muted transition-colors disabled:opacity-50"
                 >
-                  Reject
+                  Reject — Permanent
                 </button>
               </div>
             </div>
