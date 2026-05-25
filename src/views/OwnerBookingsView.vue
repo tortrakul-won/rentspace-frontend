@@ -8,6 +8,7 @@ import { useToast } from '../composables/useToast'
 import { minDelay } from '../utils/minDelay'
 import { listOwnerBookings, updateBookingStatus } from '../api/bookings'
 import type { BookingResponse, BookingStatus } from '../api/types'
+import { BOOKING_BADGE_CLASS, OWNER_STATUS_LABEL, OWNER_TAB_STATUSES } from '../composables/useBookingStatus'
 
 const { token } = useAuth()
 const { show } = useToast()
@@ -22,19 +23,12 @@ const actionStatus = ref<BookingStatus | null>(null)
 type OwnerTab = 'requests' | 'active' | 'completed' | 'cancelled'
 const activeTab = ref<OwnerTab>('requests')
 
-const TAB_STATUSES: Record<OwnerTab, string[]> = {
-  requests:  ['pending'],
-  active:    ['payment_pending', 'awaiting_payment', 'payment_review', 'confirmed'],
-  completed: ['completed'],
-  cancelled: ['cancelled'],
-}
-
 const visibleBookings = computed(() =>
-  bookings.value.filter((b) => TAB_STATUSES[activeTab.value].includes(b.status))
+  bookings.value.filter((b) => OWNER_TAB_STATUSES[activeTab.value].includes(b.status))
 )
 
 function tabCount(tab: OwnerTab) {
-  return bookings.value.filter((b) => TAB_STATUSES[tab].includes(b.status)).length
+  return bookings.value.filter((b) => OWNER_TAB_STATUSES[tab].includes(b.status)).length
 }
 
 const TABS: { key: OwnerTab; label: string }[] = [
@@ -85,16 +79,6 @@ function formatDateTime(iso: string) {
 
 function formatPrice(n: number) {
   return '฿' + n.toLocaleString('th-TH')
-}
-
-const STATUS_META: Record<string, { label: string; classes: string }> = {
-  pending:         { label: 'Pending',          classes: 'bg-amber-100 text-amber-700' },
-  payment_pending:  { label: 'Awaiting Payment', classes: 'bg-blue-100 text-blue-700' },
-  awaiting_payment: { label: 'Awaiting Slip',    classes: 'bg-blue-100 text-blue-700' },
-  payment_review:   { label: 'Under Review',     classes: 'bg-purple-100 text-purple-700' },
-  confirmed:       { label: 'Confirmed',        classes: 'bg-emerald-100 text-emerald-700' },
-  completed:       { label: 'Completed',        classes: 'bg-surface-muted text-text-secondary' },
-  cancelled:       { label: 'Cancelled',        classes: 'bg-red-100 text-red-600' },
 }
 
 const TAB_EMPTY: Record<OwnerTab, string> = {
@@ -189,8 +173,8 @@ const TAB_EMPTY: Record<OwnerTab, string> = {
                     <p class="text-sm text-text-muted">{{ formatDateTime(booking.start_time) }} → {{ formatDateTime(booking.end_time) }}</p>
                     <p class="font-mono font-semibold text-text-primary">{{ formatPrice(booking.total_price) }}</p>
                   </div>
-                  <span :class="['text-xs font-medium px-2.5 py-1 rounded-full shrink-0', STATUS_META[booking.status]?.classes]">
-                    {{ STATUS_META[booking.status]?.label }}
+                  <span :class="['text-xs font-medium px-2.5 py-1 rounded-full shrink-0', BOOKING_BADGE_CLASS[booking.status]]">
+                    {{ OWNER_STATUS_LABEL[booking.status] }}
                   </span>
                 </div>
 

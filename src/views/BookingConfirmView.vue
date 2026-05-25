@@ -8,6 +8,7 @@ import { getBooking } from '../api/bookings'
 import { getPaymentConfig } from '../api/config'
 import type { BookingResponse } from '../api/types'
 import type { PaymentConfig } from '../api/config'
+import { useBookingStatus, RENTER_STATUS_LABEL } from '../composables/useBookingStatus'
 
 const route = useRoute()
 const router = useRouter()
@@ -62,36 +63,13 @@ function formatPrice(n: number) {
   return '฿' + n.toLocaleString('th-TH')
 }
 
-const statusLabel = computed(() => {
-  switch (booking.value?.status) {
-    case 'pending': return 'Awaiting Owner'
-    case 'payment_pending': return 'Payment Required'
-    case 'awaiting_payment': return 'Payment Required'
-    case 'payment_review': return 'Under Review'
-    case 'confirmed': return 'Confirmed'
-    case 'cancelled': return 'Cancelled'
-    case 'completed': return 'Completed'
-    default: return booking.value?.status ?? ''
-  }
-})
-
-const statusClass = computed(() => {
-  switch (booking.value?.status) {
-    case 'pending': return 'bg-amber-100 text-amber-700'
-    case 'payment_pending': return 'bg-blue-100 text-blue-700'
-    case 'awaiting_payment': return 'bg-blue-100 text-blue-700'
-    case 'payment_review': return 'bg-purple-100 text-purple-700'
-    case 'confirmed': return 'bg-green-100 text-green-700'
-    case 'cancelled': return 'bg-red-100 text-red-700'
-    case 'completed': return 'bg-surface-muted text-text-muted'
-    default: return 'bg-surface-muted text-text-muted'
-  }
-})
-
-const isPaymentPending = computed(() => booking.value?.status === 'awaiting_payment' || booking.value?.status === 'payment_pending')
-const isPaymentReview = computed(() => booking.value?.status === 'payment_review')
-const isCancelled = computed(() => booking.value?.status === 'cancelled')
-const isPending = computed(() => booking.value?.status === 'pending')
+const bookingStatus = computed(() => useBookingStatus(booking.value?.status))
+const statusLabel    = computed(() => RENTER_STATUS_LABEL[booking.value?.status ?? ''] ?? booking.value?.status ?? '')
+const statusClass    = computed(() => bookingStatus.value.badgeClass)
+const isPaymentPending = computed(() => bookingStatus.value.isPaymentDue)
+const isPaymentReview  = computed(() => bookingStatus.value.isUnderReview)
+const isCancelled      = computed(() => bookingStatus.value.isCancelled)
+const isPending        = computed(() => bookingStatus.value.isPending)
 
 const cancelledMessage = computed(() => {
   switch (booking.value?.cancel_reason) {
