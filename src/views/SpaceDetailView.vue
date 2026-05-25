@@ -51,7 +51,9 @@ async function handleBook(startTime: string, endTime: string) {
     )
     router.push(`/bookings/${booking.id}/confirm`)
   } catch (e: any) {
-    show(e?.message ?? 'Failed to create booking', 'error')
+    const details: Record<string, string> = e?.details ?? {}
+    const fieldErrors = Object.entries(details).map(([f, msg]) => `${f}: ${msg}`)
+    show(fieldErrors.length ? fieldErrors.join(' · ') : (e?.message ?? 'Failed to create booking'), 'error')
   } finally {
     submitting.value = false
   }
