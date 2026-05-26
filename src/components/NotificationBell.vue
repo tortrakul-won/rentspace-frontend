@@ -72,6 +72,8 @@ async function connectSSE() {
               if (notifOpen.value) {
                 notifications.value = [evt.payload as NotificationResponse, ...notifications.value]
               }
+            } else if (evt.type === 'payment_review') {
+              unreadCount.value++
             }
           } catch { /* malformed event */ }
         }
