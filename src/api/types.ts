@@ -95,6 +95,7 @@ export type BookingStatus = 'pending' | 'payment_pending' | 'awaiting_payment' |
 
 export interface BookingResponse {
   id: string
+  ref_code: string
   space_id: string
   renter_id: string
   start_time: string
@@ -113,6 +114,32 @@ export interface BookingResponse {
   space_location?: string
   space_images?: string[]
   renter_name?: string
+}
+
+export interface AdminBookingDetailResponse {
+  id: string
+  ref_code: string
+  space_id: string
+  renter_id: string
+  start_time: string
+  end_time: string
+  total_price: number
+  platform_fee: number
+  status: BookingStatus
+  cancel_reason?: string | null
+  refund_status?: string | null
+  process_expires_at?: string | null
+  slip_url?: string | null
+  created_at: string
+  updated_at: string
+  space_name: string
+  space_location: string
+  space_images: string[]
+  renter_display_name: string
+  renter_full_name: string
+  renter_phone?: string | null
+  owner_display_name: string
+  owner_full_name: string
 }
 
 export interface CreateBookingRequest {
