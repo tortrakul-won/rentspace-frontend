@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
-import { adminListPaymentPending, adminApproveBooking, adminRejectRetryBooking, adminRejectPermanentBooking } from '../api/bookings'
+import { adminListPaymentPending } from '../api/bookings'
 import type { BookingResponse } from '../api/types'
 
 const router = useRouter()
@@ -16,7 +16,6 @@ const activeTab = ref<AdminTab>('payments')
 
 const bookings = ref<BookingResponse[]>([])
 const loading = ref(true)
-const processing = ref<string | null>(null)
 
 onMounted(async () => {
   if (!isAdmin.value) {
@@ -33,45 +32,6 @@ async function load() {
     show('Failed to load bookings', 'error')
   } finally {
     loading.value = false
-  }
-}
-
-async function approve(id: string) {
-  processing.value = id
-  try {
-    await adminApproveBooking(id, token.value!)
-    bookings.value = bookings.value.filter((b) => b.id !== id)
-    show('Booking confirmed', 'success')
-  } catch (e: any) {
-    show(e?.message ?? 'Failed to approve', 'error')
-  } finally {
-    processing.value = null
-  }
-}
-
-async function rejectRetry(id: string) {
-  processing.value = id
-  try {
-    await adminRejectRetryBooking(id, token.value!)
-    bookings.value = bookings.value.filter((b) => b.id !== id)
-    show('Slip rejected — renter can retry', 'success')
-  } catch (e: any) {
-    show(e?.message ?? 'Failed to reject', 'error')
-  } finally {
-    processing.value = null
-  }
-}
-
-async function rejectPermanent(id: string) {
-  processing.value = id
-  try {
-    await adminRejectPermanentBooking(id, token.value!)
-    bookings.value = bookings.value.filter((b) => b.id !== id)
-    show('Booking rejected permanently', 'success')
-  } catch (e: any) {
-    show(e?.message ?? 'Failed to reject', 'error')
-  } finally {
-    processing.value = null
   }
 }
 
@@ -138,15 +98,15 @@ function formatPrice(n: number) {
       </div>
 
       <!-- Booking cards -->
-      <div v-else class="space-y-4">
+      <div v-else class="space-y-6">
         <div
           v-for="b in bookings"
           :key="b.id"
-          class="bg-surface border border-border rounded-2xl p-5"
+          class="bg-surface border border-border rounded-2xl overflow-hidden"
         >
-          <div class="flex items-start gap-4">
-            <!-- Space thumbnail -->
-            <div class="w-16 h-16 rounded-xl overflow-hidden bg-surface-muted flex-shrink-0">
+          <!-- Header: space info + price -->
+          <div class="flex items-start gap-4 p-5">
+            <div class="w-14 h-14 rounded-xl overflow-hidden bg-surface-muted flex-shrink-0">
               <img
                 v-if="b.space_images?.[0]"
                 :src="b.space_images[0]"
@@ -154,54 +114,40 @@ function formatPrice(n: number) {
                 :alt="b.space_name"
               />
             </div>
-
             <div class="flex-1 min-w-0">
-              <div class="flex items-center justify-between gap-2 flex-wrap">
+              <div class="flex items-start justify-between gap-2">
                 <div>
                   <p class="font-semibold text-text-primary">{{ b.space_name ?? 'Space' }}</p>
-                  <p class="text-xs text-text-muted mt-0.5">
-                    by <span class="text-text-secondary">{{ b.renter_name ?? 'Renter' }}</span>
-                    · Ref {{ b.id.slice(0, 8).toUpperCase() }}
-                  </p>
+                  <p v-if="b.space_location" class="text-xs text-text-muted mt-0.5">📍 {{ b.space_location }}</p>
                 </div>
-                <span class="text-sm font-mono font-bold text-brand">{{ formatPrice(b.total_price) }}</span>
+                <span class="text-base font-mono font-bold text-brand shrink-0">{{ formatPrice(b.total_price) }}</span>
               </div>
-
-              <div class="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-                <div>
-                  <span class="text-text-muted">Check-in</span>
-                  <p class="text-text-primary font-medium">{{ formatDateTime(b.start_time) }}</p>
-                </div>
-                <div>
-                  <span class="text-text-muted">Check-out</span>
-                  <p class="text-text-primary font-medium">{{ formatDateTime(b.end_time) }}</p>
-                </div>
-              </div>
-
-              <div class="mt-4 flex gap-2 flex-wrap">
-                <button
-                  @click="approve(b.id)"
-                  :disabled="processing === b.id"
-                  class="flex-1 bg-brand text-text-inverse py-2 rounded-xl text-sm font-medium hover:bg-brand-hover transition-colors disabled:opacity-50"
-                >
-                  {{ processing === b.id ? 'Processing…' : 'Confirm Payment' }}
-                </button>
-                <button
-                  @click="rejectRetry(b.id)"
-                  :disabled="processing === b.id"
-                  class="flex-1 border border-amber-300 text-amber-700 py-2 rounded-xl text-sm font-medium hover:bg-amber-50 transition-colors disabled:opacity-50"
-                >
-                  Reject — Retry
-                </button>
-                <button
-                  @click="rejectPermanent(b.id)"
-                  :disabled="processing === b.id"
-                  class="flex-1 border border-border text-text-secondary py-2 rounded-xl text-sm font-medium hover:bg-surface-muted transition-colors disabled:opacity-50"
-                >
-                  Reject — Permanent
-                </button>
+              <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5 text-xs text-text-muted">
+                <span>Renter: <span class="text-text-secondary font-medium">{{ b.renter_name ?? '—' }}</span></span>
+                <span>Ref: <span class="text-text-secondary font-mono font-medium">{{ b.ref_code }}</span></span>
+                <span>Submitted: {{ formatDateTime(b.created_at) }}</span>
               </div>
             </div>
+          </div>
+
+          <!-- Fee summary + Review button -->
+          <div class="border-t border-border px-5 py-4 flex items-center gap-4">
+            <div class="flex gap-6 text-sm flex-1">
+              <div>
+                <p class="text-xs text-text-muted mb-0.5">Platform fee</p>
+                <p class="text-text-primary font-medium">{{ formatPrice(b.platform_fee) }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-text-muted mb-0.5">Net to owner</p>
+                <p class="text-text-primary font-medium">{{ formatPrice(b.total_price - b.platform_fee) }}</p>
+              </div>
+            </div>
+            <button
+              @click="router.push(`/admin/bookings/${b.id}`)"
+              class="shrink-0 bg-brand text-text-inverse px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-brand-hover transition-colors"
+            >
+              Review →
+            </button>
           </div>
         </div>
       </div>

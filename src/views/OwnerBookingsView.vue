@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, RouterLink } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import AppSpinner from '../components/AppSpinner.vue'
+import ConfirmModal from '../components/ConfirmModal.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 import { minDelay } from '../utils/minDelay'
@@ -19,6 +20,7 @@ const loading = ref(true)
 const fetchError = ref(false)
 const actionId = ref<string | null>(null)
 const actionStatus = ref<BookingStatus | null>(null)
+const confirmAction = ref<{ id: string; status: BookingStatus; title: string; message: string } | null>(null)
 
 type OwnerTab = 'requests' | 'active' | 'completed' | 'cancelled'
 const activeTab = ref<OwnerTab>('requests')
@@ -51,8 +53,26 @@ async function loadBookings() {
   }
 }
 
-onMounted(loadBookings)
-watch(() => route.fullPath, loadBookings)
+function syncTabFromQuery() {
+  const q = route.query.tab
+  if (q === 'requests' || q === 'active' || q === 'completed' || q === 'cancelled') {
+    activeTab.value = q
+  }
+}
+
+onMounted(() => { syncTabFromQuery(); loadBookings() })
+watch(() => route.fullPath, () => { syncTabFromQuery(); loadBookings() })
+
+function requestAction(id: string, status: BookingStatus, title: string, message: string) {
+  confirmAction.value = { id, status, title, message }
+}
+
+async function handleConfirmedAction() {
+  const item = confirmAction.value
+  if (!item) return
+  confirmAction.value = null
+  await handleAction(item.id, item.status)
+}
 
 async function handleAction(id: string, status: BookingStatus) {
   actionId.value = id
@@ -178,39 +198,40 @@ const TAB_EMPTY: Record<OwnerTab, string> = {
                   </span>
                 </div>
 
-                <!-- Actions: Requests tab -->
-                <div v-if="activeTab === 'requests'" class="mt-3 flex gap-2 flex-wrap">
-                  <button
-                    @click="handleAction(booking.id, 'awaiting_payment')"
-                    :disabled="actionId === booking.id"
-                    class="px-3 py-1.5 text-xs font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
+                <!-- Requests tab: Review link (accept/decline on detail page) -->
+                <div v-if="activeTab === 'requests'" class="mt-3">
+                  <RouterLink
+                    :to="`/owner/bookings/${booking.id}`"
+                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-brand border border-brand/30 rounded-lg hover:bg-brand/5 transition-colors"
                   >
-                    <AppSpinner v-if="actionId === booking.id && actionStatus === 'awaiting_payment'" />
-                    <span>{{ actionId === booking.id && actionStatus === 'awaiting_payment' ? 'Processing…' : 'Accept' }}</span>
-                  </button>
-                  <button
-                    @click="handleAction(booking.id, 'cancelled')"
-                    :disabled="actionId === booking.id"
-                    class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
-                  >
-                    <AppSpinner v-if="actionId === booking.id && actionStatus === 'cancelled'" />
-                    <span>{{ actionId === booking.id && actionStatus === 'cancelled' ? 'Processing…' : 'Decline' }}</span>
-                  </button>
+                    Review →
+                  </RouterLink>
                 </div>
 
-                <!-- Actions: Active tab -->
-                <div v-if="activeTab === 'active'" class="mt-3 flex items-center justify-between gap-3">
-                  <p v-if="['awaiting_payment', 'payment_pending'].includes(booking.status)" class="text-xs text-text-muted">Awaiting renter payment slip. Admin verifies transfer.</p>
-                  <p v-if="booking.status === 'payment_review'" class="text-xs text-text-muted">Payment slip submitted. Under admin review.</p>
-                  <p v-if="booking.status === 'confirmed'" class="text-xs text-text-muted">Confirmed. Completes automatically after end time.</p>
+                <!-- Active tab: status hint + cancel + detail link -->
+                <div v-if="activeTab === 'active'" class="mt-3 flex items-center justify-between gap-3 flex-wrap">
+                  <div class="flex items-center gap-2">
+                    <RouterLink
+                      :to="`/owner/bookings/${booking.id}`"
+                      class="text-xs text-brand hover:underline"
+                    >View details</RouterLink>
+                  </div>
                   <button
-                    @click="handleAction(booking.id, 'cancelled')"
+                    @click="requestAction(booking.id, 'cancelled', 'Cancel this booking?', 'This will cancel the booking. This action cannot be undone.')"
                     :disabled="actionId === booking.id"
                     class="shrink-0 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
                   >
                     <AppSpinner v-if="actionId === booking.id" />
                     <span>{{ actionId === booking.id ? 'Processing…' : 'Cancel' }}</span>
                   </button>
+                </div>
+
+                <!-- Completed/Cancelled tabs: view details link -->
+                <div v-if="activeTab === 'completed' || activeTab === 'cancelled'" class="mt-3">
+                  <RouterLink
+                    :to="`/owner/bookings/${booking.id}`"
+                    class="text-xs text-text-muted hover:text-brand transition-colors"
+                  >View details →</RouterLink>
                 </div>
               </div>
             </div>
@@ -219,4 +240,14 @@ const TAB_EMPTY: Record<OwnerTab, string> = {
       </template>
     </div>
   </div>
+
+  <ConfirmModal
+    :open="!!confirmAction"
+    :title="confirmAction?.title ?? ''"
+    :message="confirmAction?.message"
+    :confirm-label="confirmAction?.status === 'awaiting_payment' ? 'Yes, accept' : 'Yes, confirm'"
+    :destructive="confirmAction?.status === 'cancelled'"
+    @confirm="handleConfirmedAction"
+    @cancel="confirmAction = null"
+  />
 </template>

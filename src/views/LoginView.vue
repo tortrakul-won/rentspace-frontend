@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
@@ -11,6 +11,13 @@ const router = useRouter()
 const { login } = useAuth()
 const { show } = useToast()
 const { show: showLoading, hide: hideLoading } = useLoading()
+
+onMounted(() => {
+  if (sessionStorage.getItem('rs_session_expired')) {
+    sessionStorage.removeItem('rs_session_expired')
+    show('Session expired. Please sign in again.', 'error')
+  }
+})
 
 const email = ref('')
 const password = ref('')

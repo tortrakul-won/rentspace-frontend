@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
+import ConfirmModal from '../components/ConfirmModal.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 import { getBooking, updateBookingStatus } from '../api/bookings'
@@ -23,6 +24,7 @@ const paymentConfig = ref<PaymentConfig>({ promptpay_number: '', promptpay_name:
 const slipFile = ref<File | null>(null)
 const slipPreviewUrl = ref<string | null>(null)
 const submittingSlip = ref(false)
+const confirmSubmitSlip = ref(false)
 const slipInput = ref<HTMLInputElement | null>(null)
 
 function onSlipChange(e: Event) {
@@ -256,7 +258,7 @@ const cancelledMessage = computed(() => {
             </button>
           </div>
           <button
-            @click="submitSlip"
+            @click="confirmSubmitSlip = true"
             :disabled="!slipFile || submittingSlip"
             class="w-full py-3 rounded-xl font-medium text-sm transition-colors disabled:opacity-50 bg-brand text-text-inverse hover:bg-brand-hover"
           >
@@ -296,7 +298,7 @@ const cancelledMessage = computed(() => {
             <span class="font-mono text-text-primary">{{ formatPrice(booking.total_price) }}</span>
           </div>
         </div>
-        <p class="text-xs text-text-muted text-center pt-1">Booking reference: {{ booking.id.slice(0, 8).toUpperCase() }}</p>
+        <p class="text-xs text-text-muted text-center pt-1">Booking reference: {{ booking.ref_code }}</p>
       </div>
 
       <!-- Next steps (pending only) -->
@@ -326,4 +328,13 @@ const cancelledMessage = computed(() => {
       </div>
     </div>
   </div>
+
+  <ConfirmModal
+    :open="confirmSubmitSlip"
+    title="Submit payment slip?"
+    message="This will submit your transfer slip for admin review. Make sure the slip shows the correct amount and transfer details."
+    confirm-label="Yes, submit"
+    @confirm="confirmSubmitSlip = false; submitSlip()"
+    @cancel="confirmSubmitSlip = false"
+  />
 </template>

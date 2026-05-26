@@ -73,8 +73,18 @@ export const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/owner/bookings/:id',
+      component: () => import('../views/OwnerBookingDetailView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/admin',
       component: () => import('../views/AdminView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/admin/bookings/:id',
+      component: () => import('../views/AdminBookingDetailView.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
     },
   ],

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { getUnreadCount, listNotifications, markAllNotificationsRead } from '../api/notifications'
@@ -18,6 +18,7 @@ const notifications = ref<NotificationResponse[]>([])
 
 let abortController: AbortController | null = null
 let fallbackTimer: ReturnType<typeof setInterval> | null = null
+let retryDelay = 3_000
 
 async function fetchUnreadCount() {
   if (!token.value) return
@@ -38,7 +39,7 @@ function clearFallbackPoll() {
 }
 
 // Connect via fetch-based SSE so we can send the Authorization header.
-// Falls back to polling if SSE is unavailable (proxy strips chunked, old env, etc.).
+// Retries with exponential backoff on transient errors; falls back to polling only on 401.
 async function connectSSE() {
   if (!token.value || !isAuthenticated.value) return
   abortController = new AbortController()
@@ -48,9 +49,16 @@ async function connectSSE() {
       headers: { Authorization: `Bearer ${token.value}` },
       signal: abortController.signal,
     })
+
+    if (res.status === 401) {
+      // Auth gone — poll until token watcher reconnects SSE on re-auth
+      startFallbackPoll()
+      return
+    }
     if (!res.ok || !res.body) throw new Error('sse-unavailable')
 
     clearFallbackPoll()
+    retryDelay = 3_000 // reset backoff on successful connection
 
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
@@ -72,6 +80,11 @@ async function connectSSE() {
               if (notifOpen.value) {
                 notifications.value = [evt.payload as NotificationResponse, ...notifications.value]
               }
+            } else if (evt.type === 'payment_review') {
+              unreadCount.value++
+              if (notifOpen.value) {
+                notifications.value = await listNotifications(token.value!)
+              }
             }
           } catch { /* malformed event */ }
         }
@@ -79,15 +92,34 @@ async function connectSSE() {
     }
   } catch (e: any) {
     if (e?.name === 'AbortError') return // intentional cleanup
-    startFallbackPoll()
+    // Transient error — retry with exponential backoff (3 s → 6 s → 12 s … max 30 s)
+    if (!abortController?.signal.aborted) {
+      setTimeout(connectSSE, retryDelay)
+      retryDelay = Math.min(retryDelay * 2, 30_000)
+    }
     return
   }
 
-  // Server closed stream — reconnect after 3 s unless we're unmounting
+  // Server closed stream cleanly — reconnect after 3 s unless we're unmounting
   if (!abortController?.signal.aborted) {
+    retryDelay = 3_000
     setTimeout(connectSSE, 3_000)
   }
 }
+
+// Reconnect SSE when token changes (re-auth, session restore)
+watch(token, (newToken, oldToken) => {
+  if (newToken && newToken !== oldToken) {
+    abortController?.abort()
+    clearFallbackPoll()
+    retryDelay = 3_000
+    connectSSE()
+  } else if (!newToken) {
+    abortController?.abort()
+    clearFallbackPoll()
+    unreadCount.value = 0
+  }
+})
 
 async function openNotifs() {
   notifOpen.value = !notifOpen.value
@@ -109,8 +141,8 @@ function handleNotifClick(n: NotificationResponse) {
   closeNotifs()
   unreadCount.value = 0
   const target = notifLink(n)
-  if (route.path === target) {
-    router.push({ path: target, query: { _t: Date.now() } })
+  if (route.path === target.path) {
+    router.push({ path: target.path, query: { ...target.query, _t: String(Date.now()) } })
   } else {
     router.push(target)
   }
@@ -124,6 +156,9 @@ const NOTIF_LABEL: Record<string, string> = {
   booking_cancelled_by_renter: 'Booking cancelled by renter',
   backup_booking_cancelled:    'Backup booking cancelled',
   payment_rejected:            'Payment rejected',
+  payment_rejected_retry:      'Slip rejected — please resubmit',
+  payment_review:              'New payment slip to review',
+  booking_confirmed_owner:     'Booking confirmed — payment received',
 }
 
 function notifLabel(type: string) {
@@ -140,17 +175,22 @@ function notifTime(iso: string) {
   return Math.floor(diff / 86400) + 'd ago'
 }
 
-const OWNER_NOTIF_TYPES = new Set(['booking_request', 'booking_cancelled_by_renter'])
 const CANCELLED_NOTIF_TYPES = new Set(['booking_cancelled_by_owner', 'backup_booking_cancelled', 'payment_rejected'])
 
-function notifLink(n: NotificationResponse): string {
+type RouteTarget = { path: string; query?: Record<string, string> }
+
+function notifLink(n: NotificationResponse): RouteTarget {
   const bookingId = n.booking_id ?? n.payload?.booking_id
-  if (OWNER_NOTIF_TYPES.has(n.type)) return '/owner/bookings'
-  if (CANCELLED_NOTIF_TYPES.has(n.type)) return bookingId ? `/bookings/${bookingId}/cancelled` : '/my-bookings'
-  if (n.type === 'payment_required') return bookingId ? `/bookings/${bookingId}/payment` : '/my-bookings'
-  if (n.type === 'booking_confirmed') return bookingId ? `/bookings/${bookingId}/confirm` : '/my-bookings'
-  if (bookingId) return `/bookings/${bookingId}/confirm`
-  return '/my-bookings'
+  if (n.type === 'payment_review') return { path: bookingId ? `/admin/bookings/${bookingId}` : '/admin' }
+  if (n.type === 'booking_confirmed_owner') return { path: '/owner/bookings', query: { tab: 'active' } }
+  if (n.type === 'booking_request') return { path: '/owner/bookings', query: { tab: 'requests' } }
+  if (n.type === 'booking_cancelled_by_renter') return { path: '/owner/bookings', query: { tab: 'cancelled' } }
+  if (CANCELLED_NOTIF_TYPES.has(n.type)) return { path: bookingId ? `/bookings/${bookingId}/cancelled` : '/my-bookings' }
+  if (n.type === 'payment_rejected_retry') return { path: bookingId ? `/bookings/${bookingId}/payment` : '/my-bookings' }
+  if (n.type === 'payment_required') return { path: bookingId ? `/bookings/${bookingId}/payment` : '/my-bookings' }
+  if (n.type === 'booking_confirmed') return { path: bookingId ? `/bookings/${bookingId}/confirm` : '/my-bookings' }
+  if (bookingId) return { path: `/bookings/${bookingId}/confirm` }
+  return { path: '/my-bookings' }
 }
 
 onMounted(() => {
