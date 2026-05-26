@@ -43,3 +43,7 @@ export function addProfile(body: { role: string; display_name: string }, token: 
 export function updateProfile(body: { display_name?: string; line_id?: string }, token: string): Promise<import('./types').ProfileResponse> {
   return apiFetch('/api/v1/auth/profile', { method: 'PATCH', body: JSON.stringify(body) }, token)
 }
+
+export function updateUser(body: { full_name?: string; phone?: string }, token: string): Promise<import('./types').UserResponse> {
+  return apiFetch('/api/v1/auth/me', { method: 'PATCH', body: JSON.stringify(body) }, token)
+}
