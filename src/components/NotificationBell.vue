@@ -74,6 +74,9 @@ async function connectSSE() {
               }
             } else if (evt.type === 'payment_review') {
               unreadCount.value++
+              if (notifOpen.value) {
+                notifications.value = await listNotifications(token.value!)
+              }
             }
           } catch { /* malformed event */ }
         }
@@ -126,6 +129,9 @@ const NOTIF_LABEL: Record<string, string> = {
   booking_cancelled_by_renter: 'Booking cancelled by renter',
   backup_booking_cancelled:    'Backup booking cancelled',
   payment_rejected:            'Payment rejected',
+  payment_rejected_retry:      'Slip rejected — please resubmit',
+  payment_review:              'New payment slip to review',
+  booking_confirmed_owner:     'Booking confirmed — payment received',
 }
 
 function notifLabel(type: string) {
@@ -147,8 +153,11 @@ const CANCELLED_NOTIF_TYPES = new Set(['booking_cancelled_by_owner', 'backup_boo
 
 function notifLink(n: NotificationResponse): string {
   const bookingId = n.booking_id ?? n.payload?.booking_id
+  if (n.type === 'payment_review') return bookingId ? `/admin/bookings/${bookingId}` : '/admin'
+  if (n.type === 'booking_confirmed_owner') return '/owner/bookings'
   if (OWNER_NOTIF_TYPES.has(n.type)) return '/owner/bookings'
   if (CANCELLED_NOTIF_TYPES.has(n.type)) return bookingId ? `/bookings/${bookingId}/cancelled` : '/my-bookings'
+  if (n.type === 'payment_rejected_retry') return bookingId ? `/bookings/${bookingId}/payment` : '/my-bookings'
   if (n.type === 'payment_required') return bookingId ? `/bookings/${bookingId}/payment` : '/my-bookings'
   if (n.type === 'booking_confirmed') return bookingId ? `/bookings/${bookingId}/confirm` : '/my-bookings'
   if (bookingId) return `/bookings/${bookingId}/confirm`

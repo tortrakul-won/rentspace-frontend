@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
+import ConfirmModal from '../components/ConfirmModal.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 import {
@@ -20,6 +21,7 @@ const { show } = useToast()
 const booking = ref<AdminBookingDetailResponse | null>(null)
 const loading = ref(true)
 const processing = ref(false)
+const confirmRejectPermanent = ref(false)
 
 onMounted(async () => {
   if (!isAdmin.value) {
@@ -226,7 +228,7 @@ function formatPrice(n: number) {
             Reject — retry
           </button>
           <button
-            @click="rejectPermanent"
+            @click="confirmRejectPermanent = true"
             :disabled="processing"
             class="flex-1 border border-border text-error py-3 rounded-xl text-sm font-medium hover:bg-red-50 transition-colors disabled:opacity-50"
           >
@@ -237,4 +239,14 @@ function formatPrice(n: number) {
       </template>
     </div>
   </div>
+
+  <ConfirmModal
+    :open="confirmRejectPermanent"
+    title="Reject permanently?"
+    message="This will cancel the booking. The renter will be notified. This action cannot be undone."
+    confirm-label="Yes, reject"
+    destructive
+    @confirm="confirmRejectPermanent = false; rejectPermanent()"
+    @cancel="confirmRejectPermanent = false"
+  />
 </template>

@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import AppSpinner from '../components/AppSpinner.vue'
+import ConfirmModal from '../components/ConfirmModal.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 import { minDelay } from '../utils/minDelay'
@@ -18,6 +19,7 @@ const bookings = ref<BookingResponse[]>([])
 const loading = ref(true)
 const fetchError = ref(false)
 const cancellingId = ref<string | null>(null)
+const confirmCancelId = ref<string | null>(null)
 
 type BookingTab = 'active' | 'completed' | 'cancelled'
 const activeTab = ref<BookingTab>('active')
@@ -46,7 +48,14 @@ async function loadBookings() {
 onMounted(loadBookings)
 watch(() => route.fullPath, loadBookings)
 
-async function handleCancel(id: string) {
+function requestCancel(id: string) {
+  confirmCancelId.value = id
+}
+
+async function handleCancel() {
+  const id = confirmCancelId.value
+  if (!id) return
+  confirmCancelId.value = null
   cancellingId.value = id
   try {
     await minDelay(updateBookingStatus(id, 'cancelled', token.value!), 500)
@@ -190,7 +199,7 @@ const TABS: { key: BookingTab; label: string }[] = [
                   </RouterLink>
                   <button
                     v-if="['pending', 'payment_pending', 'awaiting_payment'].includes(booking.status)"
-                    @click="handleCancel(booking.id)"
+                    @click="requestCancel(booking.id)"
                     :disabled="cancellingId === booking.id"
                     class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
                   >
@@ -205,4 +214,14 @@ const TABS: { key: BookingTab; label: string }[] = [
       </template>
     </div>
   </div>
+
+  <ConfirmModal
+    :open="!!confirmCancelId"
+    title="Cancel booking?"
+    message="This will cancel your booking. This action cannot be undone."
+    confirm-label="Yes, cancel"
+    destructive
+    @confirm="handleCancel"
+    @cancel="confirmCancelId = null"
+  />
 </template>
