@@ -21,6 +21,8 @@ const { show } = useToast()
 const booking = ref<AdminBookingDetailResponse | null>(null)
 const loading = ref(true)
 const processing = ref(false)
+const confirmApprove = ref(false)
+const confirmRejectRetry = ref(false)
 const confirmRejectPermanent = ref(false)
 
 onMounted(async () => {
@@ -214,14 +216,14 @@ function formatPrice(n: number) {
         <!-- Actions -->
         <div class="bg-surface border border-border rounded-2xl p-5 flex gap-3">
           <button
-            @click="approve"
+            @click="confirmApprove = true"
             :disabled="processing"
             class="flex-1 bg-brand text-text-inverse py-3 rounded-xl text-sm font-medium hover:bg-brand-hover transition-colors disabled:opacity-50"
           >
             {{ processing ? 'Processing…' : 'Confirm Payment' }}
           </button>
           <button
-            @click="rejectRetry"
+            @click="confirmRejectRetry = true"
             :disabled="processing"
             class="flex-1 border border-amber-300 text-amber-700 py-3 rounded-xl text-sm font-medium hover:bg-amber-50 transition-colors disabled:opacity-50"
           >
@@ -240,6 +242,22 @@ function formatPrice(n: number) {
     </div>
   </div>
 
+  <ConfirmModal
+    :open="confirmApprove"
+    title="Confirm this payment?"
+    message="This will confirm the booking. The renter and owner will be notified."
+    confirm-label="Yes, confirm"
+    @confirm="confirmApprove = false; approve()"
+    @cancel="confirmApprove = false"
+  />
+  <ConfirmModal
+    :open="confirmRejectRetry"
+    title="Reject slip and allow retry?"
+    message="The renter will be notified and can resubmit their payment slip."
+    confirm-label="Yes, reject"
+    @confirm="confirmRejectRetry = false; rejectRetry()"
+    @cancel="confirmRejectRetry = false"
+  />
   <ConfirmModal
     :open="confirmRejectPermanent"
     title="Reject permanently?"

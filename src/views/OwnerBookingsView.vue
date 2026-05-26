@@ -20,7 +20,7 @@ const loading = ref(true)
 const fetchError = ref(false)
 const actionId = ref<string | null>(null)
 const actionStatus = ref<BookingStatus | null>(null)
-const confirmCancel = ref<{ id: string; title: string; message: string } | null>(null)
+const confirmAction = ref<{ id: string; status: BookingStatus; title: string; message: string } | null>(null)
 
 type OwnerTab = 'requests' | 'active' | 'completed' | 'cancelled'
 const activeTab = ref<OwnerTab>('requests')
@@ -56,15 +56,15 @@ async function loadBookings() {
 onMounted(loadBookings)
 watch(() => route.fullPath, loadBookings)
 
-function requestCancel(id: string, title: string, message: string) {
-  confirmCancel.value = { id, title, message }
+function requestAction(id: string, status: BookingStatus, title: string, message: string) {
+  confirmAction.value = { id, status, title, message }
 }
 
-async function handleConfirmedCancel() {
-  const item = confirmCancel.value
+async function handleConfirmedAction() {
+  const item = confirmAction.value
   if (!item) return
-  confirmCancel.value = null
-  await handleAction(item.id, 'cancelled')
+  confirmAction.value = null
+  await handleAction(item.id, item.status)
 }
 
 async function handleAction(id: string, status: BookingStatus) {
@@ -194,7 +194,7 @@ const TAB_EMPTY: Record<OwnerTab, string> = {
                 <!-- Actions: Requests tab -->
                 <div v-if="activeTab === 'requests'" class="mt-3 flex gap-2 flex-wrap">
                   <button
-                    @click="handleAction(booking.id, 'awaiting_payment')"
+                    @click="requestAction(booking.id, 'awaiting_payment', 'Accept this booking?', 'The renter will be notified and asked to complete payment via PromptPay.')"
                     :disabled="actionId === booking.id"
                     class="px-3 py-1.5 text-xs font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
                   >
@@ -202,7 +202,7 @@ const TAB_EMPTY: Record<OwnerTab, string> = {
                     <span>{{ actionId === booking.id && actionStatus === 'awaiting_payment' ? 'Processing…' : 'Accept' }}</span>
                   </button>
                   <button
-                    @click="requestCancel(booking.id, 'Decline booking request?', 'This will decline the booking request. The renter will be notified.')"
+                    @click="requestAction(booking.id, 'cancelled', 'Decline booking request?', 'This will decline the booking request. The renter will be notified.')"
                     :disabled="actionId === booking.id"
                     class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
                   >
@@ -217,7 +217,7 @@ const TAB_EMPTY: Record<OwnerTab, string> = {
                   <p v-if="booking.status === 'payment_review'" class="text-xs text-text-muted">Payment slip submitted. Under admin review.</p>
                   <p v-if="booking.status === 'confirmed'" class="text-xs text-text-muted">Confirmed. Completes automatically after end time.</p>
                   <button
-                    @click="requestCancel(booking.id, 'Cancel this booking?', 'This will cancel the booking. This action cannot be undone.')"
+                    @click="requestAction(booking.id, 'cancelled', 'Cancel this booking?', 'This will cancel the booking. This action cannot be undone.')"
                     :disabled="actionId === booking.id"
                     class="shrink-0 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
                   >
@@ -234,12 +234,12 @@ const TAB_EMPTY: Record<OwnerTab, string> = {
   </div>
 
   <ConfirmModal
-    :open="!!confirmCancel"
-    :title="confirmCancel?.title ?? ''"
-    :message="confirmCancel?.message"
-    confirm-label="Yes, confirm"
-    destructive
-    @confirm="handleConfirmedCancel"
-    @cancel="confirmCancel = null"
+    :open="!!confirmAction"
+    :title="confirmAction?.title ?? ''"
+    :message="confirmAction?.message"
+    :confirm-label="confirmAction?.status === 'awaiting_payment' ? 'Yes, accept' : 'Yes, confirm'"
+    :destructive="confirmAction?.status === 'cancelled'"
+    @confirm="handleConfirmedAction"
+    @cancel="confirmAction = null"
   />
 </template>

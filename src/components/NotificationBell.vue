@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { getUnreadCount, listNotifications, markAllNotificationsRead } from '../api/notifications'
@@ -18,6 +18,7 @@ const notifications = ref<NotificationResponse[]>([])
 
 let abortController: AbortController | null = null
 let fallbackTimer: ReturnType<typeof setInterval> | null = null
+let retryDelay = 3_000
 
 async function fetchUnreadCount() {
   if (!token.value) return
@@ -38,7 +39,7 @@ function clearFallbackPoll() {
 }
 
 // Connect via fetch-based SSE so we can send the Authorization header.
-// Falls back to polling if SSE is unavailable (proxy strips chunked, old env, etc.).
+// Retries with exponential backoff on transient errors; falls back to polling only on 401.
 async function connectSSE() {
   if (!token.value || !isAuthenticated.value) return
   abortController = new AbortController()
@@ -48,9 +49,16 @@ async function connectSSE() {
       headers: { Authorization: `Bearer ${token.value}` },
       signal: abortController.signal,
     })
+
+    if (res.status === 401) {
+      // Auth gone — poll until token watcher reconnects SSE on re-auth
+      startFallbackPoll()
+      return
+    }
     if (!res.ok || !res.body) throw new Error('sse-unavailable')
 
     clearFallbackPoll()
+    retryDelay = 3_000 // reset backoff on successful connection
 
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
@@ -84,15 +92,34 @@ async function connectSSE() {
     }
   } catch (e: any) {
     if (e?.name === 'AbortError') return // intentional cleanup
-    startFallbackPoll()
+    // Transient error — retry with exponential backoff (3 s → 6 s → 12 s … max 30 s)
+    if (!abortController?.signal.aborted) {
+      setTimeout(connectSSE, retryDelay)
+      retryDelay = Math.min(retryDelay * 2, 30_000)
+    }
     return
   }
 
-  // Server closed stream — reconnect after 3 s unless we're unmounting
+  // Server closed stream cleanly — reconnect after 3 s unless we're unmounting
   if (!abortController?.signal.aborted) {
+    retryDelay = 3_000
     setTimeout(connectSSE, 3_000)
   }
 }
+
+// Reconnect SSE when token changes (re-auth, session restore)
+watch(token, (newToken, oldToken) => {
+  if (newToken && newToken !== oldToken) {
+    abortController?.abort()
+    clearFallbackPoll()
+    retryDelay = 3_000
+    connectSSE()
+  } else if (!newToken) {
+    abortController?.abort()
+    clearFallbackPoll()
+    unreadCount.value = 0
+  }
+})
 
 async function openNotifs() {
   notifOpen.value = !notifOpen.value
