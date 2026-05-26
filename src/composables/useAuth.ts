@@ -78,6 +78,14 @@ export function useAuth() {
     return profile
   }
 
+  async function updateUser(body: { full_name?: string; phone?: string }) {
+    if (!token.value) return
+    const updated = await authApi.updateUser(body, token.value)
+    user.value = updated
+    persist()
+    return updated
+  }
+
   function logout() {
     token.value = null
     user.value = null
@@ -98,6 +106,7 @@ export function useAuth() {
     register,
     switchProfile,
     addProfile,
+    updateUser,
     logout,
   }
 }
