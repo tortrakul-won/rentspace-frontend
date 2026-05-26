@@ -141,8 +141,8 @@ function handleNotifClick(n: NotificationResponse) {
   closeNotifs()
   unreadCount.value = 0
   const target = notifLink(n)
-  if (route.path === target) {
-    router.push({ path: target, query: { _t: Date.now() } })
+  if (route.path === target.path) {
+    router.push({ path: target.path, query: { ...target.query, _t: String(Date.now()) } })
   } else {
     router.push(target)
   }
@@ -175,20 +175,22 @@ function notifTime(iso: string) {
   return Math.floor(diff / 86400) + 'd ago'
 }
 
-const OWNER_NOTIF_TYPES = new Set(['booking_request', 'booking_cancelled_by_renter'])
 const CANCELLED_NOTIF_TYPES = new Set(['booking_cancelled_by_owner', 'backup_booking_cancelled', 'payment_rejected'])
 
-function notifLink(n: NotificationResponse): string {
+type RouteTarget = { path: string; query?: Record<string, string> }
+
+function notifLink(n: NotificationResponse): RouteTarget {
   const bookingId = n.booking_id ?? n.payload?.booking_id
-  if (n.type === 'payment_review') return bookingId ? `/admin/bookings/${bookingId}` : '/admin'
-  if (n.type === 'booking_confirmed_owner') return '/owner/bookings'
-  if (OWNER_NOTIF_TYPES.has(n.type)) return '/owner/bookings'
-  if (CANCELLED_NOTIF_TYPES.has(n.type)) return bookingId ? `/bookings/${bookingId}/cancelled` : '/my-bookings'
-  if (n.type === 'payment_rejected_retry') return bookingId ? `/bookings/${bookingId}/payment` : '/my-bookings'
-  if (n.type === 'payment_required') return bookingId ? `/bookings/${bookingId}/payment` : '/my-bookings'
-  if (n.type === 'booking_confirmed') return bookingId ? `/bookings/${bookingId}/confirm` : '/my-bookings'
-  if (bookingId) return `/bookings/${bookingId}/confirm`
-  return '/my-bookings'
+  if (n.type === 'payment_review') return { path: bookingId ? `/admin/bookings/${bookingId}` : '/admin' }
+  if (n.type === 'booking_confirmed_owner') return { path: '/owner/bookings', query: { tab: 'active' } }
+  if (n.type === 'booking_request') return { path: '/owner/bookings', query: { tab: 'requests' } }
+  if (n.type === 'booking_cancelled_by_renter') return { path: '/owner/bookings', query: { tab: 'cancelled' } }
+  if (CANCELLED_NOTIF_TYPES.has(n.type)) return { path: bookingId ? `/bookings/${bookingId}/cancelled` : '/my-bookings' }
+  if (n.type === 'payment_rejected_retry') return { path: bookingId ? `/bookings/${bookingId}/payment` : '/my-bookings' }
+  if (n.type === 'payment_required') return { path: bookingId ? `/bookings/${bookingId}/payment` : '/my-bookings' }
+  if (n.type === 'booking_confirmed') return { path: bookingId ? `/bookings/${bookingId}/confirm` : '/my-bookings' }
+  if (bookingId) return { path: `/bookings/${bookingId}/confirm` }
+  return { path: '/my-bookings' }
 }
 
 onMounted(() => {
