@@ -1,5 +1,5 @@
 import { apiFetch } from './client'
-import type { BookingResponse, BookingStatus, CreateBookingRequest } from './types'
+import type { AdminBookingDetailResponse, BookingResponse, BookingStatus, CreateBookingRequest } from './types'
 
 export function createBooking(data: CreateBookingRequest, token: string): Promise<BookingResponse> {
   return apiFetch('/api/v1/bookings', { method: 'POST', body: JSON.stringify(data) }, token)
@@ -27,6 +27,10 @@ export function listSpaceBookings(spaceId: string, token: string): Promise<Booki
 
 export function adminListPaymentPending(token: string): Promise<BookingResponse[]> {
   return apiFetch('/api/v1/admin/bookings', {}, token)
+}
+
+export function adminGetBookingDetail(id: string, token: string): Promise<AdminBookingDetailResponse> {
+  return apiFetch(`/api/v1/admin/bookings/${id}`, {}, token)
 }
 
 export function adminApproveBooking(id: string, token: string): Promise<BookingResponse> {

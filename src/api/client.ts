@@ -31,6 +31,12 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
+    if (res.status === 401 && token) {
+      ;['rs_token', 'rs_user', 'rs_profiles', 'rs_active_profile'].forEach(k => localStorage.removeItem(k))
+      sessionStorage.setItem('rs_session_expired', '1')
+      window.location.replace('/login')
+      throw new ApiError(401, 'Session expired')
+    }
     let message = `Request failed (${res.status})`
     let code = ''
     let details: Record<string, string> = {}

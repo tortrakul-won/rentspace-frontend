@@ -296,7 +296,7 @@ const cancelledMessage = computed(() => {
             <span class="font-mono text-text-primary">{{ formatPrice(booking.total_price) }}</span>
           </div>
         </div>
-        <p class="text-xs text-text-muted text-center pt-1">Booking reference: {{ booking.id.slice(0, 8).toUpperCase() }}</p>
+        <p class="text-xs text-text-muted text-center pt-1">Booking reference: {{ booking.ref_code }}</p>
       </div>
 
       <!-- Next steps (pending only) -->
