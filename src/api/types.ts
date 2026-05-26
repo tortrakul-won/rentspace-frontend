@@ -142,6 +142,26 @@ export interface AdminBookingDetailResponse {
   owner_full_name: string
 }
 
+export interface OwnerBookingDetailResponse {
+  id: string
+  ref_code: string
+  space_id: string
+  renter_id: string
+  start_time: string
+  end_time: string
+  total_price: number
+  platform_fee: number
+  status: BookingStatus
+  cancel_reason?: string | null
+  created_at: string
+  space_name: string
+  space_location: string
+  space_images: string[]
+  renter_display_name: string
+  renter_full_name: string
+  renter_phone?: string | null
+}
+
 export interface CreateBookingRequest {
   space_id: string
   start_time: string
