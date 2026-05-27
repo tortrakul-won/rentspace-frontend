@@ -66,6 +66,11 @@ const avatarInitial = computed(() =>
           class="hover:text-text-primary transition-colors"
         >Bookings</RouterLink>
         <RouterLink
+          v-if="activeProfile?.role === 'owner'"
+          to="/owner/earnings"
+          class="hover:text-text-primary transition-colors"
+        >Earnings</RouterLink>
+        <RouterLink
           v-if="activeProfile?.role === 'renter'"
           to="/my-bookings"
           class="hover:text-text-primary transition-colors"
@@ -174,7 +179,18 @@ const avatarInitial = computed(() =>
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
-            Booking Requests
+            Bookings
+          </RouterLink>
+          <RouterLink
+            v-if="activeProfile?.role === 'owner'"
+            to="/owner/earnings"
+            @click="closeMenu"
+            class="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-subtle transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Earnings
           </RouterLink>
           <RouterLink
             v-if="activeProfile?.role === 'renter'"

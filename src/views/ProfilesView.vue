@@ -1,17 +1,12 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
-import { useToast } from '../composables/useToast'
 import { useLoading } from '../composables/useLoading'
-import { ApiError } from '../api/client'
 import RoleBadge from '../components/RoleBadge.vue'
 import { minDelay } from '../utils/minDelay'
-import type { ProfileFields } from '../api/auth'
 
 const router = useRouter()
-const { profiles, activeProfile, switchProfile, addProfile } = useAuth()
-const { show } = useToast()
+const { profiles, activeProfile, switchProfile } = useAuth()
 const { show: showLoading, hide: hideLoading } = useLoading()
 
 const ROLES = ['renter', 'owner'] as const
@@ -34,84 +29,11 @@ function profileForRole(role: Role) {
   return profiles.value.find((p) => p.role === role) ?? null
 }
 
-const addingRole = ref<Role | null>(null)
-const addError = ref('')
-const newFields = reactive<ProfileFields & { is_juristic: boolean; is_vat_registered: boolean }>({
-  profile_name: '',
-  legal_name_th: '',
-  legal_name_en: '',
-  line_id: '',
-  phone: '',
-  address_line1: '',
-  subdistrict: '',
-  district: '',
-  province: '',
-  postal_code: '',
-  branch_number: '',
-  tax_id: '',
-  is_juristic: false,
-  is_vat_registered: false,
-})
-
-function startAdd(role: Role) {
-  addingRole.value = role
-  addError.value = ''
-  Object.assign(newFields, {
-    profile_name: '',
-    legal_name_th: '',
-    legal_name_en: '',
-    line_id: '',
-    phone: '',
-    address_line1: '',
-    subdistrict: '',
-    district: '',
-    province: '',
-    postal_code: '',
-    branch_number: '',
-    tax_id: '',
-    is_juristic: false,
-    is_vat_registered: false,
-  })
-}
-
-function cancelAdd() {
-  addingRole.value = null
-}
-
 async function handleSwitch(profileId: string) {
   showLoading()
   await minDelay(switchProfile(profileId), 800)
   await router.push('/')
   hideLoading()
-}
-
-
-async function handleAdd(role: Role) {
-  addError.value = ''
-  if (!newFields.profile_name.trim() || !newFields.legal_name_th.trim() || !newFields.phone.trim() ||
-      !newFields.address_line1.trim() || !newFields.subdistrict.trim() || !newFields.district.trim() ||
-      !newFields.province.trim() || !newFields.postal_code.trim()) {
-    addError.value = 'All required fields must be filled'
-    return
-  }
-  if (role === 'owner' && !newFields.tax_id?.trim()) {
-    addError.value = 'Tax ID is required for owner profiles'
-    return
-  }
-  showLoading()
-  try {
-    await minDelay(addProfile(role, {
-      ...newFields,
-      branch_number: newFields.branch_number || '00000',
-      tax_id: newFields.tax_id || undefined,
-    }), 600)
-    show(`${ROLE_META[role].label} profile added!`, 'success')
-    addingRole.value = null
-  } catch (err) {
-    show(err instanceof ApiError ? err.message : 'Something went wrong', 'error')
-  } finally {
-    hideLoading()
-  }
 }
 </script>
 
@@ -176,13 +98,20 @@ async function handleAdd(role: Role) {
             </div>
 
             <!-- Action -->
-            <div class="shrink-0">
+            <div class="shrink-0 flex flex-col items-end gap-2">
               <span
                 v-if="profileForRole(role)?.id === activeProfile?.id"
                 class="text-xs text-text-muted"
               >
                 Current
               </span>
+              <RouterLink
+                v-if="profileForRole(role)?.id === activeProfile?.id"
+                to="/profile/edit"
+                class="text-xs font-medium text-brand hover:text-brand-hover transition-colors"
+              >
+                Edit
+              </RouterLink>
               <button
                 v-else-if="profileForRole(role)"
                 @click="handleSwitch(profileForRole(role)!.id)"
@@ -190,126 +119,13 @@ async function handleAdd(role: Role) {
               >
                 Switch
               </button>
-              <button
-                v-else-if="addingRole !== role"
-                @click="startAdd(role)"
+              <RouterLink
+                v-else
+                :to="`/profile/add?role=${role}`"
                 class="text-sm font-medium text-brand hover:text-brand-hover transition-colors"
               >
                 Add
-              </button>
-            </div>
-          </div>
-
-
-          <!-- Inline add form -->
-          <div v-if="addingRole === role" class="mt-4 pt-4 border-t border-border space-y-4">
-            <p class="text-xs font-semibold text-text-muted uppercase tracking-wider">New {{ ROLE_META[role].label }} Profile</p>
-
-            <div>
-              <label class="block text-xs font-medium text-text-primary mb-1">
-                Name <span class="text-error">*</span>
-              </label>
-              <input v-model="newFields.profile_name" type="text" placeholder="สมชาย หรือ บริษัท ABC จำกัด" class="w-full px-3 py-2 text-sm border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors" />
-              <p class="mt-1 text-xs text-text-muted">Can be your name, nickname, or company name — used for display and contact</p>
-            </div>
-
-            <div>
-              <label class="block text-xs font-medium text-text-primary mb-1">
-                Legal name (Thai) <span class="text-error">*</span>
-                <span class="text-text-muted font-normal ml-1">— on contracts & invoices</span>
-              </label>
-              <input v-model="newFields.legal_name_th" type="text" placeholder="สมชาย มีสุข" class="w-full px-3 py-2 text-sm border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors" />
-            </div>
-
-            <div>
-              <label class="block text-xs font-medium text-text-primary mb-1">
-                Legal name (English)
-                <span class="text-text-muted font-normal ml-1">— optional, for English documents</span>
-              </label>
-              <input v-model="newFields.legal_name_en" type="text" placeholder="Somchai Meesuk" class="w-full px-3 py-2 text-sm border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors" />
-            </div>
-
-            <div>
-              <label class="block text-xs font-medium text-text-primary mb-1">
-                Line ID
-                <span class="text-text-muted font-normal ml-1">— optional</span>
-              </label>
-              <input v-model="newFields.line_id" type="text" placeholder="@yourlineid" class="w-full px-3 py-2 text-sm border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors" />
-            </div>
-
-            <div>
-              <label class="block text-xs font-medium text-text-primary mb-1">Entity type</label>
-              <div class="flex gap-4">
-                <label class="flex items-center gap-1.5 cursor-pointer">
-                  <input type="radio" :value="false" v-model="newFields.is_juristic" class="accent-brand" />
-                  <span class="text-sm text-text-primary">Individual</span>
-                </label>
-                <label class="flex items-center gap-1.5 cursor-pointer">
-                  <input type="radio" :value="true" v-model="newFields.is_juristic" class="accent-brand" />
-                  <span class="text-sm text-text-primary">Company</span>
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs font-medium text-text-primary mb-1">
-                Phone <span class="text-error">*</span>
-              </label>
-              <input v-model="newFields.phone" type="tel" placeholder="081-234-5678" class="w-full px-3 py-2 text-sm border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors" />
-            </div>
-
-            <div>
-              <label class="block text-xs font-medium text-text-primary mb-1">
-                Tax ID
-                <span v-if="role === 'owner'" class="text-error">*</span>
-                <span v-else class="text-text-muted font-normal ml-1">— optional</span>
-                <span class="text-text-muted font-normal ml-1">— on tax documents</span>
-              </label>
-              <input v-model="newFields.tax_id" type="text" maxlength="13" placeholder="1234567890123" class="w-full px-3 py-2 text-sm border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors" />
-            </div>
-
-            <div v-if="newFields.is_juristic">
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" v-model="newFields.is_vat_registered" class="accent-brand" />
-                <span class="text-sm text-text-primary">VAT registered</span>
-              </label>
-              <div v-if="newFields.is_vat_registered" class="mt-2">
-                <label class="block text-xs font-medium text-text-primary mb-1">
-                  Branch number <span class="text-text-muted font-normal">(on tax invoices)</span>
-                </label>
-                <input v-model="newFields.branch_number" type="text" maxlength="5" placeholder="00000" class="w-full px-3 py-2 text-sm border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors" />
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Address — on contracts & invoices</label>
-              <div class="space-y-2">
-                <input v-model="newFields.address_line1" type="text" placeholder="Address line 1 (บ้านเลขที่/ถนน/ซอย) *" class="w-full px-3 py-2 text-sm border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors" />
-                <div class="grid grid-cols-2 gap-2">
-                  <input v-model="newFields.subdistrict" type="text" placeholder="Subdistrict (ตำบล/แขวง) *" class="w-full px-3 py-2 text-sm border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors" />
-                  <input v-model="newFields.district" type="text" placeholder="District (อำเภอ/เขต) *" class="w-full px-3 py-2 text-sm border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors" />
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                  <input v-model="newFields.province" type="text" placeholder="Province (จังหวัด) *" class="w-full px-3 py-2 text-sm border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors" />
-                  <input v-model="newFields.postal_code" type="text" maxlength="5" placeholder="Postal code *" class="w-full px-3 py-2 text-sm border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors" />
-                </div>
-              </div>
-            </div>
-
-            <p v-if="addError" class="text-xs text-error">{{ addError }}</p>
-            <div class="flex gap-2">
-              <button
-                @click="handleAdd(role)"
-                class="px-4 py-2 bg-brand text-text-inverse text-sm font-medium rounded-xl hover:bg-brand-hover transition-colors"
-              >
-                Add profile
-              </button>
-              <button
-                @click="cancelAdd"
-                class="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
-              >
-                Cancel
-              </button>
+              </RouterLink>
             </div>
           </div>
         </div>

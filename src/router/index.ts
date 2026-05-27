@@ -43,6 +43,16 @@ export const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/profile/edit',
+      component: () => import('../views/ProfileEditView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/profile/add',
+      component: () => import('../views/ProfileAddView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/account',
       component: () => import('../views/AccountView.vue'),
       meta: { requiresAuth: true },
@@ -75,6 +85,11 @@ export const router = createRouter({
     {
       path: '/owner/bookings/:id',
       component: () => import('../views/OwnerBookingDetailView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/owner/earnings',
+      component: () => import('../views/OwnerEarningsView.vue'),
       meta: { requiresAuth: true },
     },
     {
