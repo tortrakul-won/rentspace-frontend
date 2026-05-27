@@ -24,9 +24,16 @@ const confirmCancelId = ref<string | null>(null)
 type BookingTab = 'active' | 'completed' | 'cancelled'
 const activeTab = ref<BookingTab>('active')
 
-const visibleBookings = computed(() =>
-  bookings.value.filter((b) => RENTER_TAB_STATUSES[activeTab.value].includes(b.status))
-)
+const visibleBookings = computed(() => {
+  const filtered = bookings.value.filter((b) => RENTER_TAB_STATUSES[activeTab.value].includes(b.status))
+  // Active: upcoming first (soonest start_time first)
+  // Completed/Cancelled: most recent first
+  return [...filtered].sort((a, b) => {
+    const ta = new Date(a.start_time).getTime()
+    const tb = new Date(b.start_time).getTime()
+    return activeTab.value === 'active' ? ta - tb : tb - ta
+  })
+})
 
 function tabCount(tab: BookingTab) {
   return bookings.value.filter((b) => RENTER_TAB_STATUSES[tab].includes(b.status)).length
@@ -168,6 +175,7 @@ const TABS: { key: BookingTab; label: string }[] = [
                     <p v-if="booking.space_name" class="font-medium text-text-primary truncate">{{ booking.space_name }}</p>
                     <p class="text-sm text-text-muted">{{ formatDateTime(booking.start_time) }} → {{ formatDateTime(booking.end_time) }}</p>
                     <p class="font-mono font-semibold text-text-primary">{{ formatPrice(booking.total_price) }}</p>
+                    <p v-if="booking.ref_code" class="text-xs text-text-muted font-mono">Ref: {{ booking.ref_code }}</p>
                   </div>
                   <span :class="['text-xs font-medium px-2.5 py-1 rounded-full shrink-0', BOOKING_BADGE_CLASS[booking.status]]">
                     {{ RENTER_STATUS_LABEL[booking.status] }}
@@ -175,7 +183,16 @@ const TABS: { key: BookingTab; label: string }[] = [
                 </div>
 
                 <!-- Actions -->
-                <div v-if="['pending', 'payment_pending', 'awaiting_payment', 'cancelled'].includes(booking.status)" class="mt-3 flex gap-2 flex-wrap items-center">
+                <div class="mt-3 flex gap-2 flex-wrap items-center">
+                  <!-- Pending / Confirmed: view booking summary -->
+                  <RouterLink
+                    v-if="booking.status === 'pending' || booking.status === 'confirmed'"
+                    :to="`/bookings/${booking.id}/confirm`"
+                    class="px-3 py-1.5 text-xs font-medium text-text-secondary border border-border rounded-lg hover:bg-surface-muted transition-colors"
+                  >
+                    View Details
+                  </RouterLink>
+                  <!-- Awaiting payment -->
                   <RouterLink
                     v-if="booking.status === 'awaiting_payment' || booking.status === 'payment_pending'"
                     :to="`/bookings/${booking.id}/payment`"
@@ -183,6 +200,7 @@ const TABS: { key: BookingTab; label: string }[] = [
                   >
                     View Payment Details
                   </RouterLink>
+                  <!-- Under review -->
                   <RouterLink
                     v-if="booking.status === 'payment_review'"
                     :to="`/bookings/${booking.id}/review`"
@@ -190,6 +208,15 @@ const TABS: { key: BookingTab; label: string }[] = [
                   >
                     View Review Status
                   </RouterLink>
+                  <!-- Completed -->
+                  <RouterLink
+                    v-if="booking.status === 'completed'"
+                    :to="`/bookings/${booking.id}/confirm`"
+                    class="px-3 py-1.5 text-xs font-medium text-text-muted border border-border rounded-lg hover:bg-surface-muted transition-colors"
+                  >
+                    View Details
+                  </RouterLink>
+                  <!-- Cancelled -->
                   <RouterLink
                     v-if="booking.status === 'cancelled'"
                     :to="`/bookings/${booking.id}/cancelled`"
@@ -197,6 +224,7 @@ const TABS: { key: BookingTab; label: string }[] = [
                   >
                     View Details
                   </RouterLink>
+                  <!-- Cancel action -->
                   <button
                     v-if="['pending', 'payment_pending', 'awaiting_payment'].includes(booking.status)"
                     @click="requestCancel(booking.id)"
