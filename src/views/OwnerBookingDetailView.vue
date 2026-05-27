@@ -110,8 +110,7 @@ function formatPrice(n: number) {
         <!-- Renter info -->
         <div class="bg-surface border border-border rounded-2xl p-5 mb-4">
           <p class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Renter</p>
-          <p class="font-semibold text-text-primary">{{ booking.renter_display_name }}</p>
-          <p class="text-sm text-text-secondary mt-0.5">{{ booking.renter_full_name }}</p>
+          <p class="font-semibold text-text-primary">{{ booking.renter_profile_name }}</p>
           <p v-if="booking.renter_phone" class="text-sm text-text-muted mt-0.5">{{ booking.renter_phone }}</p>
         </div>
 
