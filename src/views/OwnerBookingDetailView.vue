@@ -8,6 +8,7 @@ import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 import { ownerGetBookingDetail, updateBookingStatus } from '../api/bookings'
 import { minDelay } from '../utils/minDelay'
+import { formatPhone } from '../utils/format'
 import type { OwnerBookingDetailResponse } from '../api/types'
 import { BOOKING_BADGE_CLASS, OWNER_STATUS_LABEL } from '../composables/useBookingStatus'
 
@@ -111,7 +112,7 @@ function formatPrice(n: number) {
         <div class="bg-surface border border-border rounded-2xl p-5 mb-4">
           <p class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Renter</p>
           <p class="font-semibold text-text-primary">{{ booking.renter_profile_name }}</p>
-          <p v-if="booking.renter_phone" class="text-sm text-text-muted mt-0.5">{{ booking.renter_phone }}</p>
+          <p v-if="booking.renter_phone" class="text-sm text-text-muted mt-0.5 font-mono">{{ formatPhone(booking.renter_phone) }}</p>
         </div>
 
         <!-- Space + dates -->
