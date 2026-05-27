@@ -76,12 +76,12 @@ function update<K extends keyof SpaceFormData>(key: K, value: SpaceFormData[K]) 
 <template>
   <form @submit.prevent="emit('submit')" class="space-y-8">
 
-    <!-- Required legend -->
-    <p class="text-xs text-text-muted"><span class="text-red-500 font-medium">*</span> Required fields</p>
-
     <!-- Basic Info -->
     <section class="bg-surface border border-border rounded-2xl p-6 space-y-5">
-      <h2 class="text-sm font-semibold text-text-primary uppercase tracking-wider">Basic Info</h2>
+      <div class="flex items-baseline justify-between">
+        <h2 class="text-sm font-semibold text-text-primary uppercase tracking-wider">Basic Info</h2>
+        <p class="text-xs text-text-muted"><span class="text-red-500 font-medium">*</span> Required fields</p>
+      </div>
 
       <div>
         <label class="block text-sm font-medium text-text-primary mb-1.5">
@@ -160,9 +160,24 @@ function update<K extends keyof SpaceFormData>(key: K, value: SpaceFormData[K]) 
           class="w-full px-4 py-2.5 text-sm text-text-primary bg-surface border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand transition resize-none font-mono"
         />
         <p class="text-xs text-text-muted mt-1.5">Add at least 1 photo. 16:9 ratio images look best.</p>
-        <!-- First image preview -->
-        <div v-if="imageList[0]" class="mt-3 w-32 h-24 rounded-xl overflow-hidden bg-surface-muted border border-border">
-          <img :src="imageList[0]" alt="Preview" class="w-full h-full object-cover" @error="($event.target as HTMLImageElement).style.display='none'" />
+        <!-- Image previews — one thumbnail per URL
+             TODO R2: when Cloudflare R2 upload is added, replace the textarea above with a
+             file picker. This thumbnail strip stays as-is — just feed it uploaded object URLs. -->
+        <div v-if="imageList.length" class="mt-3 flex flex-wrap gap-2">
+          <div
+            v-for="(url, idx) in imageList"
+            :key="idx"
+            class="relative w-24 h-16 rounded-xl overflow-hidden bg-surface-muted flex-shrink-0"
+            :class="idx === 0 ? 'border-2 border-brand' : 'border border-border'"
+          >
+            <img
+              :src="url"
+              :alt="`Preview ${idx + 1}`"
+              class="w-full h-full object-cover"
+              @error="($event.target as HTMLImageElement).style.display='none'"
+            />
+            <span class="absolute bottom-0.5 right-1 text-white text-[10px] font-medium drop-shadow">{{ idx + 1 }}</span>
+          </div>
         </div>
       </div>
     </section>
@@ -294,9 +309,10 @@ function update<K extends keyof SpaceFormData>(key: K, value: SpaceFormData[K]) 
             <input
               type="checkbox"
               v-model="day.enabled"
-              class="w-4 h-4 rounded border-border text-brand focus:ring-brand/30"
+              class="w-4 h-4 rounded border-border focus:ring-brand/30"
+              style="accent-color: var(--color-brand)"
             />
-            <span :class="['text-sm', day.enabled ? 'text-text-primary font-medium' : 'text-text-muted']">
+            <span :class="['text-sm text-text-primary', day.enabled ? 'font-medium' : '']">
               {{ DAYS[i] }}
             </span>
           </label>

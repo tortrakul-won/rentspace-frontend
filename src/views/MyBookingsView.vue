@@ -20,6 +20,7 @@ const loading = ref(true)
 const fetchError = ref(false)
 const cancellingId = ref<string | null>(null)
 const confirmCancelId = ref<string | null>(null)
+const confirmCancelStatus = ref<string | null>(null)
 
 type BookingTab = 'active' | 'completed' | 'cancelled'
 const activeTab = ref<BookingTab>('active')
@@ -55,8 +56,9 @@ async function loadBookings() {
 onMounted(loadBookings)
 watch(() => route.fullPath, loadBookings)
 
-function requestCancel(id: string) {
+function requestCancel(id: string, status: string) {
   confirmCancelId.value = id
+  confirmCancelStatus.value = status
 }
 
 async function handleCancel() {
@@ -226,10 +228,10 @@ const TABS: { key: BookingTab; label: string }[] = [
                   </RouterLink>
                   <!-- Cancel action -->
                   <button
-                    v-if="['pending', 'payment_pending', 'awaiting_payment'].includes(booking.status)"
-                    @click="requestCancel(booking.id)"
+                    v-if="['pending', 'payment_pending', 'awaiting_payment', 'payment_review', 'confirmed'].includes(booking.status)"
+                    @click="requestCancel(booking.id, booking.status)"
                     :disabled="cancellingId === booking.id"
-                    class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
+                    class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 bg-surface rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
                   >
                     <AppSpinner v-if="cancellingId === booking.id" />
                     <span>{{ cancellingId === booking.id ? 'Cancelling…' : 'Cancel booking' }}</span>
@@ -246,10 +248,12 @@ const TABS: { key: BookingTab; label: string }[] = [
   <ConfirmModal
     :open="!!confirmCancelId"
     title="Cancel booking?"
-    message="This will cancel your booking. This action cannot be undone."
+    :message="['payment_review', 'confirmed'].includes(confirmCancelStatus ?? '')
+      ? 'This will cancel your booking. If you have already transferred payment, please contact our admin directly to arrange a refund. This cannot be undone.'
+      : 'This will cancel your booking. This action cannot be undone.'"
     confirm-label="Yes, cancel"
     destructive
     @confirm="handleCancel"
-    @cancel="confirmCancelId = null"
+    @cancel="confirmCancelId = null; confirmCancelStatus = null"
   />
 </template>

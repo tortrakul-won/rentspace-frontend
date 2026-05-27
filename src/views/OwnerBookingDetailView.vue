@@ -203,7 +203,7 @@ function formatPrice(n: number) {
           <button
             @click="requestAction('cancelled', 'Cancel this booking?', 'This will cancel the booking. This action cannot be undone.')"
             :disabled="processing"
-            class="shrink-0 px-4 py-2 border border-border text-error rounded-xl text-sm font-medium hover:bg-red-50 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+            class="shrink-0 px-4 py-2 border border-border text-error rounded-xl text-sm font-medium bg-surface hover:bg-red-50 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
           >
             <AppSpinner v-if="processing" />
             {{ processing ? 'Processing…' : 'Cancel booking' }}

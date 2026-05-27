@@ -467,7 +467,7 @@ const spaceThumb = computed(() => booking.value?.space_images?.[0] ?? null)
         <button
           @click="confirmCancel = true"
           :disabled="cancelling"
-          class="w-full py-3 rounded-xl text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
+          class="w-full py-3 rounded-xl text-sm font-medium text-red-600 border border-red-200 bg-surface hover:bg-red-50 transition-colors disabled:opacity-50"
         >
           {{ cancelling ? 'Cancelling…' : 'Cancel this booking' }}
         </button>
@@ -488,8 +488,11 @@ const spaceThumb = computed(() => booking.value?.space_images?.[0] ?? null)
   <ConfirmModal
     :open="confirmCancel"
     title="Cancel this booking?"
-    message="This will cancel your booking and release the slot. This cannot be undone."
+    :message="(isPaymentReview || isConfirmed)
+      ? 'This will cancel your booking. If you have already transferred payment, please contact our admin directly to arrange a refund. This cannot be undone.'
+      : 'This will cancel your booking and release the slot. This cannot be undone.'"
     confirm-label="Yes, cancel"
+    destructive
     @confirm="confirmCancel = false; cancelBooking()"
     @cancel="confirmCancel = false"
   />
