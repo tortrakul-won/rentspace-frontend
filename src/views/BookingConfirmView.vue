@@ -7,7 +7,7 @@ import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 import { getBooking, updateBookingStatus } from '../api/bookings'
 import { getPaymentConfig } from '../api/config'
-import type { BookingResponse } from '../api/types'
+import type { RenterBookingDetailResponse } from '../api/types'
 import type { PaymentConfig } from '../api/config'
 import { useBookingStatus, RENTER_STATUS_LABEL } from '../composables/useBookingStatus'
 
@@ -16,7 +16,7 @@ const router = useRouter()
 const { token } = useAuth()
 const { show } = useToast()
 
-const booking = ref<BookingResponse | null>(null)
+const booking = ref<RenterBookingDetailResponse | null>(null)
 const loading = ref(true)
 const notFound = ref(false)
 const paymentConfig = ref<PaymentConfig>({ promptpay_number: '', promptpay_name: '', promptpay_qr_url: '' })
@@ -103,13 +103,15 @@ function formatPrice(n: number) {
   return '฿' + n.toLocaleString('th-TH')
 }
 
-const bookingStatus = computed(() => useBookingStatus(booking.value?.status))
-const statusLabel    = computed(() => RENTER_STATUS_LABEL[booking.value?.status ?? ''] ?? booking.value?.status ?? '')
-const statusClass    = computed(() => bookingStatus.value.badgeClass)
+const bookingStatus    = computed(() => useBookingStatus(booking.value?.status))
+const statusLabel      = computed(() => RENTER_STATUS_LABEL[booking.value?.status ?? ''] ?? booking.value?.status ?? '')
+const statusClass      = computed(() => bookingStatus.value.badgeClass)
 const isPaymentPending = computed(() => bookingStatus.value.isPaymentDue)
 const isPaymentReview  = computed(() => bookingStatus.value.isUnderReview)
 const isCancelled      = computed(() => bookingStatus.value.isCancelled)
 const isPending        = computed(() => bookingStatus.value.isPending)
+const isConfirmed      = computed(() => bookingStatus.value.isConfirmed)
+const isCompleted      = computed(() => bookingStatus.value.isCompleted)
 
 const cancelledMessage = computed(() => {
   switch (booking.value?.cancel_reason) {
@@ -121,6 +123,34 @@ const cancelledMessage = computed(() => {
     default:                  return 'This booking has been cancelled.'
   }
 })
+
+// --- Timeline ---
+const TIMELINE_STEPS = [
+  { key: 'pending',          label: 'Requested' },
+  { key: 'awaiting_payment', label: 'Pay' },
+  { key: 'payment_review',   label: 'Review' },
+  { key: 'confirmed',        label: 'Confirmed' },
+  { key: 'completed',        label: 'Completed' },
+]
+
+const currentStepIndex = computed(() => {
+  const s = booking.value?.status
+  if (s === 'pending')          return 0
+  if (s === 'awaiting_payment' || s === 'payment_pending') return 1
+  if (s === 'payment_review')   return 2
+  if (s === 'confirmed')        return 3
+  if (s === 'completed')        return 4
+  return -1
+})
+
+function stepState(idx: number): 'done' | 'current' | 'upcoming' {
+  const cur = currentStepIndex.value
+  if (idx < cur)  return 'done'
+  if (idx === cur) return 'current'
+  return 'upcoming'
+}
+
+const spaceThumb = computed(() => booking.value?.space_images?.[0] ?? null)
 </script>
 
 <template>
@@ -129,6 +159,13 @@ const cancelledMessage = computed(() => {
 
     <!-- Skeleton -->
     <div v-if="loading" class="max-w-lg mx-auto px-6 py-16 animate-pulse">
+      <div class="flex items-center gap-3 mb-8">
+        <div class="w-14 h-14 bg-surface-muted rounded-xl shrink-0"></div>
+        <div class="space-y-2 flex-1">
+          <div class="h-4 bg-surface-muted rounded w-2/3"></div>
+          <div class="h-3 bg-surface-muted rounded w-1/2"></div>
+        </div>
+      </div>
       <div class="h-12 bg-surface-muted rounded-full w-12 mx-auto mb-6"></div>
       <div class="h-6 bg-surface-muted rounded w-1/2 mx-auto mb-3"></div>
       <div class="h-4 bg-surface-muted rounded w-3/4 mx-auto"></div>
@@ -140,11 +177,34 @@ const cancelledMessage = computed(() => {
       <RouterLink to="/my-bookings" class="text-brand text-sm font-medium hover:underline">View my bookings</RouterLink>
     </div>
 
-    <!-- Confirmation -->
-    <div v-else class="max-w-lg mx-auto px-6 py-16">
-      <!-- Icon -->
-      <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-6"
-           :class="isPaymentPending ? 'bg-blue-100' : isPaymentReview ? 'bg-purple-100' : isCancelled ? 'bg-red-100' : 'bg-success-light'">
+    <!-- Content -->
+    <div v-else class="max-w-lg mx-auto px-6 py-10">
+
+      <!-- Space header -->
+      <div class="flex items-center gap-3 mb-8">
+        <img
+          v-if="spaceThumb"
+          :src="spaceThumb"
+          :alt="booking.space_name"
+          class="w-14 h-14 rounded-xl object-cover shrink-0 border border-border"
+        />
+        <div
+          v-else
+          class="w-14 h-14 rounded-xl bg-surface-muted border border-border shrink-0 flex items-center justify-center"
+        >
+          <svg class="w-6 h-6 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <p class="font-semibold text-text-primary truncate">{{ booking.space_name }}</p>
+          <p class="text-xs text-text-muted truncate">{{ booking.space_location }}</p>
+        </div>
+      </div>
+
+      <!-- Status icon + title -->
+      <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+           :class="isPaymentPending ? 'bg-blue-100' : isPaymentReview ? 'bg-purple-100' : isCancelled ? 'bg-red-100' : isCompleted ? 'bg-surface-muted' : 'bg-success-light'">
         <svg v-if="isPaymentPending" class="w-7 h-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
         </svg>
@@ -154,24 +214,73 @@ const cancelledMessage = computed(() => {
         <svg v-else-if="isCancelled" class="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
+        <svg v-else-if="isCompleted" class="w-7 h-7 text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
         <svg v-else class="w-7 h-7 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
         </svg>
       </div>
 
-      <div class="text-center mb-8">
+      <div class="text-center mb-6">
         <h1 class="text-2xl font-bold mb-2" :class="isCancelled ? 'text-red-600' : 'text-text-primary'">
           <template v-if="isPaymentPending">Complete Your Payment</template>
           <template v-else-if="isPaymentReview">Payment Under Review</template>
           <template v-else-if="isCancelled">Booking Cancelled</template>
+          <template v-else-if="isConfirmed">Booking Confirmed</template>
+          <template v-else-if="isCompleted">Booking Completed</template>
           <template v-else>Booking Requested</template>
         </h1>
-        <p class="text-text-secondary">
+        <p class="text-text-secondary text-sm">
           <template v-if="isPaymentPending">The owner has accepted your booking. Please transfer the amount below to confirm your slot.</template>
           <template v-else-if="isPaymentReview">Your payment slip has been submitted. Our team will verify and confirm within 24 hours.</template>
           <template v-else-if="isCancelled">{{ cancelledMessage }}</template>
+          <template v-else-if="isConfirmed">Your booking is confirmed. See below for check-in details and owner contact.</template>
+          <template v-else-if="isCompleted">This booking has been completed. Thanks for using RentSpace.</template>
           <template v-else>Your request has been sent. The owner will confirm or decline shortly.</template>
         </p>
+      </div>
+
+      <!-- Status timeline (non-cancelled only) -->
+      <div v-if="!isCancelled" class="mb-8">
+        <div class="flex items-center">
+          <template v-for="(step, idx) in TIMELINE_STEPS" :key="step.key">
+            <!-- Step dot -->
+            <div class="flex flex-col items-center shrink-0">
+              <!-- Circle -->
+              <div
+                class="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+                :class="{
+                  'bg-success text-white':                    stepState(idx) === 'done',
+                  'bg-brand text-white ring-2 ring-brand ring-offset-2': stepState(idx) === 'current',
+                  'bg-surface border-2 border-border':        stepState(idx) === 'upcoming',
+                }"
+              >
+                <!-- Done: checkmark -->
+                <svg v-if="stepState(idx) === 'done'" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <!-- Current: filled dot -->
+                <div v-else-if="stepState(idx) === 'current'" class="w-2 h-2 rounded-full bg-white"></div>
+              </div>
+              <!-- Label -->
+              <span
+                class="text-xs mt-1 text-center leading-tight w-12"
+                :class="{
+                  'text-success font-medium':   stepState(idx) === 'done',
+                  'text-brand font-semibold':   stepState(idx) === 'current',
+                  'text-text-muted':            stepState(idx) === 'upcoming',
+                }"
+              >{{ step.label }}</span>
+            </div>
+            <!-- Connector line (not after last) -->
+            <div
+              v-if="idx < TIMELINE_STEPS.length - 1"
+              class="flex-1 h-0.5 mx-1 mb-4 transition-colors"
+              :class="stepState(idx) === 'done' ? 'bg-success' : 'bg-border'"
+            ></div>
+          </template>
+        </div>
       </div>
 
       <!-- Cancelled banner -->
@@ -179,7 +288,7 @@ const cancelledMessage = computed(() => {
         {{ cancelledMessage }}
       </div>
 
-      <!-- PromptPay payment block (payment_pending only) -->
+      <!-- PromptPay payment block (awaiting_payment only) -->
       <div v-if="isPaymentPending" class="bg-surface border border-border rounded-2xl p-6 mb-6 space-y-5">
         <h2 class="font-semibold text-text-primary text-center">PromptPay Transfer</h2>
 
@@ -279,12 +388,12 @@ const cancelledMessage = computed(() => {
       </div>
 
       <!-- Booking summary card -->
-      <div class="bg-surface border border-border rounded-2xl p-6 space-y-4">
+      <div class="bg-surface border border-border rounded-2xl p-6 space-y-3">
         <div class="flex justify-between items-center">
           <span class="text-sm text-text-muted">Status</span>
           <span class="text-xs font-medium px-2.5 py-1 rounded-full" :class="statusClass">{{ statusLabel }}</span>
         </div>
-        <div class="border-t border-border pt-4 space-y-3">
+        <div class="border-t border-border pt-3 space-y-3">
           <div class="flex justify-between text-sm">
             <span class="text-text-muted">Check-in</span>
             <span class="text-text-primary font-medium">{{ formatDateTime(booking.start_time) }}</span>
@@ -297,12 +406,34 @@ const cancelledMessage = computed(() => {
             <span class="text-text-primary">Total</span>
             <span class="font-mono text-text-primary">{{ formatPrice(booking.total_price) }}</span>
           </div>
+          <div class="flex justify-between items-center text-sm border-t border-border pt-3">
+            <span class="text-text-muted">Ref</span>
+            <span class="font-mono text-text-primary">{{ booking.ref_code }}</span>
+          </div>
         </div>
-        <p class="text-xs text-text-muted text-center pt-1">Booking reference: {{ booking.ref_code }}</p>
+      </div>
+
+      <!-- Owner contact (non-cancelled) -->
+      <div v-if="!isCancelled" class="mt-4 bg-surface border border-border rounded-2xl p-6 space-y-3">
+        <p class="text-sm font-medium text-text-primary">Space Owner</p>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-text-muted">Name</span>
+            <span class="text-text-primary">{{ booking.owner_profile_name }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-text-muted">Phone</span>
+            <a :href="`tel:${booking.owner_phone}`" class="font-mono text-brand hover:underline">{{ booking.owner_phone }}</a>
+          </div>
+          <div v-if="booking.owner_line_id" class="flex justify-between items-center">
+            <span class="text-text-muted">Line ID</span>
+            <span class="font-mono text-text-primary">{{ booking.owner_line_id }}</span>
+          </div>
+        </div>
       </div>
 
       <!-- Next steps (pending only) -->
-      <div v-if="isPending" class="mt-6 bg-surface-subtle border border-border rounded-xl p-4 text-sm text-text-secondary space-y-2">
+      <div v-if="isPending" class="mt-4 bg-surface-subtle border border-border rounded-xl p-4 text-sm text-text-secondary space-y-2">
         <p class="font-medium text-text-primary">What happens next?</p>
         <ul class="space-y-1 list-disc list-inside text-text-muted">
           <li>The owner has been notified of your request</li>
@@ -326,6 +457,7 @@ const cancelledMessage = computed(() => {
           Browse more spaces
         </RouterLink>
       </div>
+
     </div>
   </div>
 
