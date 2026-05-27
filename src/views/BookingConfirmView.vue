@@ -10,6 +10,7 @@ import { getPaymentConfig } from '../api/config'
 import type { RenterBookingDetailResponse } from '../api/types'
 import type { PaymentConfig } from '../api/config'
 import { useBookingStatus, RENTER_STATUS_LABEL } from '../composables/useBookingStatus'
+import { formatPhone } from '../utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,6 +26,8 @@ const slipFile = ref<File | null>(null)
 const slipPreviewUrl = ref<string | null>(null)
 const submittingSlip = ref(false)
 const confirmSubmitSlip = ref(false)
+const confirmCancel = ref(false)
+const cancelling = ref(false)
 const slipInput = ref<HTMLInputElement | null>(null)
 
 function onSlipChange(e: Event) {
@@ -57,6 +60,20 @@ async function submitSlip() {
     show(e?.message ?? 'Failed to submit slip', 'error')
   } finally {
     submittingSlip.value = false
+  }
+}
+
+async function cancelBooking() {
+  if (!booking.value || !token.value) return
+  cancelling.value = true
+  try {
+    await updateBookingStatus(booking.value.id, 'cancelled', token.value)
+    show('Booking cancelled', 'success')
+    await loadBooking(booking.value.id)
+  } catch (e: any) {
+    show(e?.message ?? 'Failed to cancel booking', 'error')
+  } finally {
+    cancelling.value = false
   }
 }
 
@@ -112,6 +129,7 @@ const isCancelled      = computed(() => bookingStatus.value.isCancelled)
 const isPending        = computed(() => bookingStatus.value.isPending)
 const isConfirmed      = computed(() => bookingStatus.value.isConfirmed)
 const isCompleted      = computed(() => bookingStatus.value.isCompleted)
+const isCancellable    = computed(() => bookingStatus.value.isCancellable)
 
 const cancelledMessage = computed(() => {
   switch (booking.value?.cancel_reason) {
@@ -159,13 +177,6 @@ const spaceThumb = computed(() => booking.value?.space_images?.[0] ?? null)
 
     <!-- Skeleton -->
     <div v-if="loading" class="max-w-lg mx-auto px-6 py-16 animate-pulse">
-      <div class="flex items-center gap-3 mb-8">
-        <div class="w-14 h-14 bg-surface-muted rounded-xl shrink-0"></div>
-        <div class="space-y-2 flex-1">
-          <div class="h-4 bg-surface-muted rounded w-2/3"></div>
-          <div class="h-3 bg-surface-muted rounded w-1/2"></div>
-        </div>
-      </div>
       <div class="h-12 bg-surface-muted rounded-full w-12 mx-auto mb-6"></div>
       <div class="h-6 bg-surface-muted rounded w-1/2 mx-auto mb-3"></div>
       <div class="h-4 bg-surface-muted rounded w-3/4 mx-auto"></div>
@@ -179,28 +190,6 @@ const spaceThumb = computed(() => booking.value?.space_images?.[0] ?? null)
 
     <!-- Content -->
     <div v-else class="max-w-lg mx-auto px-6 py-10">
-
-      <!-- Space header -->
-      <div class="flex items-center gap-3 mb-8">
-        <img
-          v-if="spaceThumb"
-          :src="spaceThumb"
-          :alt="booking.space_name"
-          class="w-14 h-14 rounded-xl object-cover shrink-0 border border-border"
-        />
-        <div
-          v-else
-          class="w-14 h-14 rounded-xl bg-surface-muted border border-border shrink-0 flex items-center justify-center"
-        >
-          <svg class="w-6 h-6 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
-          </svg>
-        </div>
-        <div class="min-w-0">
-          <p class="font-semibold text-text-primary truncate">{{ booking.space_name }}</p>
-          <p class="text-xs text-text-muted truncate">{{ booking.space_location }}</p>
-        </div>
-      </div>
 
       <!-- Status icon + title -->
       <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
@@ -245,41 +234,82 @@ const spaceThumb = computed(() => booking.value?.space_images?.[0] ?? null)
       <div v-if="!isCancelled" class="mb-8">
         <div class="flex items-center">
           <template v-for="(step, idx) in TIMELINE_STEPS" :key="step.key">
-            <!-- Step dot -->
             <div class="flex flex-col items-center shrink-0">
-              <!-- Circle -->
               <div
-                class="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+                class="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
                 :class="{
-                  'bg-success text-white':                    stepState(idx) === 'done',
-                  'bg-brand text-white ring-2 ring-brand ring-offset-2': stepState(idx) === 'current',
-                  'bg-surface border-2 border-border':        stepState(idx) === 'upcoming',
+                  'bg-success text-white':       stepState(idx) === 'done',
+                  'bg-brand text-white':         stepState(idx) === 'current',
+                  'bg-surface border border-border': stepState(idx) === 'upcoming',
                 }"
               >
-                <!-- Done: checkmark -->
-                <svg v-if="stepState(idx) === 'done'" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                <svg v-if="stepState(idx) === 'done'" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
-                <!-- Current: filled dot -->
-                <div v-else-if="stepState(idx) === 'current'" class="w-2 h-2 rounded-full bg-white"></div>
+                <div v-else-if="stepState(idx) === 'current'" class="w-1.5 h-1.5 rounded-full bg-white"></div>
               </div>
-              <!-- Label -->
               <span
                 class="text-xs mt-1 text-center leading-tight w-12"
                 :class="{
-                  'text-success font-medium':   stepState(idx) === 'done',
-                  'text-brand font-semibold':   stepState(idx) === 'current',
-                  'text-text-muted':            stepState(idx) === 'upcoming',
+                  'text-success':       stepState(idx) === 'done',
+                  'text-brand font-medium': stepState(idx) === 'current',
+                  'text-text-muted':    stepState(idx) === 'upcoming',
                 }"
               >{{ step.label }}</span>
             </div>
-            <!-- Connector line (not after last) -->
             <div
               v-if="idx < TIMELINE_STEPS.length - 1"
-              class="flex-1 h-0.5 mx-1 mb-4 transition-colors"
+              class="flex-1 h-px mx-1 mb-4 transition-colors"
               :class="stepState(idx) === 'done' ? 'bg-success' : 'bg-border'"
             ></div>
           </template>
+        </div>
+      </div>
+
+      <!-- Booking summary card -->
+      <div class="bg-surface border border-border rounded-2xl p-6 space-y-3 mb-4">
+        <!-- Space identity -->
+        <div class="flex items-center gap-3 pb-3 border-b border-border">
+          <img
+            v-if="spaceThumb"
+            :src="spaceThumb"
+            :alt="booking.space_name"
+            class="w-12 h-12 rounded-lg object-cover shrink-0 border border-border"
+          />
+          <div
+            v-else
+            class="w-12 h-12 rounded-lg bg-surface-muted border border-border shrink-0 flex items-center justify-center"
+          >
+            <svg class="w-5 h-5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <p class="font-semibold text-text-primary text-sm truncate">{{ booking.space_name }}</p>
+            <p class="text-xs text-text-muted truncate">{{ booking.space_location }}</p>
+          </div>
+        </div>
+        <div class="flex justify-between items-center py-1">
+          <span class="text-sm text-text-muted">Status</span>
+          <span class="text-xs font-medium px-2.5 py-1 rounded-full" :class="statusClass">{{ statusLabel }}</span>
+        </div>
+        <div class="border-t border-border pt-3 space-y-3">
+          <div class="flex justify-between text-sm">
+            <span class="text-text-muted">Check-in</span>
+            <span class="text-text-primary font-medium">{{ formatDateTime(booking.start_time) }}</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-text-muted">Check-out</span>
+            <span class="text-text-primary font-medium">{{ formatDateTime(booking.end_time) }}</span>
+          </div>
+          <div class="flex justify-between text-sm font-semibold border-t border-border pt-3">
+            <span class="text-text-primary">Total</span>
+            <span class="font-mono text-text-primary">{{ formatPrice(booking.total_price) }}</span>
+          </div>
+          <div class="flex justify-between items-center text-sm border-t border-border pt-3">
+            <span class="text-text-muted">Ref</span>
+            <span class="font-mono text-text-primary">{{ booking.ref_code }}</span>
+          </div>
         </div>
       </div>
 
@@ -387,32 +417,6 @@ const spaceThumb = computed(() => booking.value?.space_images?.[0] ?? null)
         <p class="text-sm text-purple-700">Our admin team will review your transfer and confirm the booking within 24 hours. You'll receive a notification once it's done.</p>
       </div>
 
-      <!-- Booking summary card -->
-      <div class="bg-surface border border-border rounded-2xl p-6 space-y-3">
-        <div class="flex justify-between items-center">
-          <span class="text-sm text-text-muted">Status</span>
-          <span class="text-xs font-medium px-2.5 py-1 rounded-full" :class="statusClass">{{ statusLabel }}</span>
-        </div>
-        <div class="border-t border-border pt-3 space-y-3">
-          <div class="flex justify-between text-sm">
-            <span class="text-text-muted">Check-in</span>
-            <span class="text-text-primary font-medium">{{ formatDateTime(booking.start_time) }}</span>
-          </div>
-          <div class="flex justify-between text-sm">
-            <span class="text-text-muted">Check-out</span>
-            <span class="text-text-primary font-medium">{{ formatDateTime(booking.end_time) }}</span>
-          </div>
-          <div class="flex justify-between text-sm font-semibold border-t border-border pt-3">
-            <span class="text-text-primary">Total</span>
-            <span class="font-mono text-text-primary">{{ formatPrice(booking.total_price) }}</span>
-          </div>
-          <div class="flex justify-between items-center text-sm border-t border-border pt-3">
-            <span class="text-text-muted">Ref</span>
-            <span class="font-mono text-text-primary">{{ booking.ref_code }}</span>
-          </div>
-        </div>
-      </div>
-
       <!-- Owner contact (non-cancelled) -->
       <div v-if="!isCancelled" class="mt-4 bg-surface border border-border rounded-2xl p-6 space-y-3">
         <p class="text-sm font-medium text-text-primary">Space Owner</p>
@@ -423,7 +427,7 @@ const spaceThumb = computed(() => booking.value?.space_images?.[0] ?? null)
           </div>
           <div class="flex justify-between items-center">
             <span class="text-text-muted">Phone</span>
-            <a :href="`tel:${booking.owner_phone}`" class="font-mono text-brand hover:underline">{{ booking.owner_phone }}</a>
+            <a :href="`tel:${booking.owner_phone}`" class="font-mono text-brand hover:underline">{{ formatPhone(booking.owner_phone) }}</a>
           </div>
           <div v-if="booking.owner_line_id" class="flex justify-between items-center">
             <span class="text-text-muted">Line ID</span>
@@ -458,6 +462,17 @@ const spaceThumb = computed(() => booking.value?.space_images?.[0] ?? null)
         </RouterLink>
       </div>
 
+      <!-- Cancel booking (cancellable states only) -->
+      <div v-if="isCancellable" class="mt-4">
+        <button
+          @click="confirmCancel = true"
+          :disabled="cancelling"
+          class="w-full py-3 rounded-xl text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
+        >
+          {{ cancelling ? 'Cancelling…' : 'Cancel this booking' }}
+        </button>
+      </div>
+
     </div>
   </div>
 
@@ -468,5 +483,14 @@ const spaceThumb = computed(() => booking.value?.space_images?.[0] ?? null)
     confirm-label="Yes, submit"
     @confirm="confirmSubmitSlip = false; submitSlip()"
     @cancel="confirmSubmitSlip = false"
+  />
+
+  <ConfirmModal
+    :open="confirmCancel"
+    title="Cancel this booking?"
+    message="This will cancel your booking and release the slot. This cannot be undone."
+    confirm-label="Yes, cancel"
+    @confirm="confirmCancel = false; cancelBooking()"
+    @cancel="confirmCancel = false"
   />
 </template>
