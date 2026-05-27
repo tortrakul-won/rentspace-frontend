@@ -40,18 +40,14 @@ export function useAuth() {
   async function register(
     email: string,
     password: string,
-    fullName: string,
-    displayName: string,
     profileRole: 'owner' | 'renter',
-    phone?: string,
+    profileFields: authApi.ProfileFields,
   ) {
     const res = await authApi.register({
       email,
       password,
-      full_name: fullName,
-      display_name: displayName,
       profile_role: profileRole,
-      ...(phone ? { phone } : {}),
+      ...profileFields,
     })
     token.value = res.token
     user.value = res.user
@@ -70,20 +66,12 @@ export function useAuth() {
     persist()
   }
 
-  async function addProfile(role: 'owner' | 'renter', displayName: string) {
+  async function addProfile(role: 'owner' | 'renter', profileFields: authApi.ProfileFields) {
     if (!token.value) return
-    const profile = await authApi.addProfile({ role, display_name: displayName }, token.value)
+    const profile = await authApi.addProfile({ role, ...profileFields }, token.value)
     profiles.value = [...profiles.value, profile]
     persist()
     return profile
-  }
-
-  async function updateUser(body: { full_name?: string; phone?: string }) {
-    if (!token.value) return
-    const updated = await authApi.updateUser(body, token.value)
-    user.value = updated
-    persist()
-    return updated
   }
 
   function logout() {
@@ -106,7 +94,6 @@ export function useAuth() {
     register,
     switchProfile,
     addProfile,
-    updateUser,
     logout,
   }
 }

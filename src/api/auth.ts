@@ -4,16 +4,31 @@ import type {
   LoginResponse,
   SwitchProfileResponse,
   CurrentUserResponse,
+  ProfileResponse,
 } from './types'
+
+export interface ProfileFields {
+  profile_name: string
+  legal_name_th: string
+  legal_name_en?: string
+  phone: string
+  address_line1: string
+  subdistrict: string
+  district: string
+  province: string
+  postal_code: string
+  branch_number?: string
+  tax_id?: string
+  is_juristic?: boolean
+  is_vat_registered?: boolean
+  line_id?: string
+}
 
 export function register(body: {
   email: string
   password: string
-  full_name: string
-  phone?: string
   profile_role: string
-  display_name: string
-}): Promise<AuthResponse> {
+} & ProfileFields): Promise<AuthResponse> {
   return apiFetch('/api/v1/auth/register', { method: 'POST', body: JSON.stringify(body) })
 }
 
@@ -36,14 +51,10 @@ export function currentUser(token: string): Promise<CurrentUserResponse> {
   return apiFetch('/api/v1/auth/me', {}, token)
 }
 
-export function addProfile(body: { role: string; display_name: string }, token: string): Promise<import('./types').ProfileResponse> {
+export function addProfile(body: { role: string } & ProfileFields, token: string): Promise<ProfileResponse> {
   return apiFetch('/api/v1/auth/profiles', { method: 'POST', body: JSON.stringify(body) }, token)
 }
 
-export function updateProfile(body: { display_name?: string; line_id?: string }, token: string): Promise<import('./types').ProfileResponse> {
+export function updateProfile(body: Partial<ProfileFields> & { line_id?: string }, token: string): Promise<ProfileResponse> {
   return apiFetch('/api/v1/auth/profile', { method: 'PATCH', body: JSON.stringify(body) }, token)
-}
-
-export function updateUser(body: { full_name?: string; phone?: string }, token: string): Promise<import('./types').UserResponse> {
-  return apiFetch('/api/v1/auth/me', { method: 'PATCH', body: JSON.stringify(body) }, token)
 }

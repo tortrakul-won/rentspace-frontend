@@ -37,13 +37,13 @@ const avatarColor = computed(() => {
     'bg-violet-500', 'bg-blue-500', 'bg-emerald-500',
     'bg-rose-500',   'bg-amber-500', 'bg-cyan-500',
   ]
-  const name = activeProfile.value?.display_name ?? ''
+  const name = activeProfile.value?.profile_name ?? ''
   const idx = name.charCodeAt(0) % colors.length
   return colors[idx] ?? 'bg-brand'
 })
 
 const avatarInitial = computed(() =>
-  (activeProfile.value?.display_name ?? '?')[0].toUpperCase()
+  (activeProfile.value?.profile_name ?? '?')[0].toUpperCase()
 )
 </script>
 
@@ -105,7 +105,7 @@ const avatarInitial = computed(() =>
 
           <!-- Name + role badge -->
           <div class="hidden sm:flex flex-col items-start leading-none gap-0.5">
-            <span class="text-sm font-medium text-text-primary">{{ activeProfile?.display_name ?? '—' }}</span>
+            <span class="text-sm font-medium text-text-primary">{{ activeProfile?.profile_name ?? '—' }}</span>
             <RoleBadge v-if="activeProfile?.role" :role="activeProfile.role" />
           </div>
 
@@ -124,7 +124,7 @@ const avatarInitial = computed(() =>
         >
           <!-- Profile info header -->
           <div class="px-3 py-2.5 border-b border-border mb-1">
-            <p class="text-sm font-medium text-text-primary">{{ activeProfile?.display_name }}</p>
+            <p class="text-sm font-medium text-text-primary">{{ activeProfile?.profile_name }}</p>
             <p class="text-xs text-text-muted mt-0.5">{{ activeProfile?.role === 'owner' ? 'Owner account' : 'Renter account' }}</p>
           </div>
 
@@ -142,7 +142,7 @@ const avatarInitial = computed(() =>
               ]"
             >
               <RoleBadge :role="profile.role" />
-              <span>{{ profile.display_name }}</span>
+              <span>{{ profile.profile_name }}</span>
               <svg
                 v-if="profile.id === activeProfile?.id"
                 class="ml-auto w-3.5 h-3.5 text-brand shrink-0"
