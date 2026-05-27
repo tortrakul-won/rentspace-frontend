@@ -1,8 +1,6 @@
 export interface UserResponse {
   id: string
   email: string
-  full_name: string
-  phone?: string
   is_admin: boolean
   created_at: string
 }
@@ -11,7 +9,16 @@ export interface ProfileResponse {
   id: string
   user_id: string
   role: 'owner' | 'renter'
-  display_name: string
+  profile_name: string
+  legal_name_th: string
+  legal_name_en: string
+  phone: string
+  address_line1: string
+  subdistrict: string
+  district: string
+  province: string
+  postal_code: string
+  branch_number: string
   tax_id?: string
   is_juristic: boolean
   is_vat_registered: boolean
@@ -135,11 +142,9 @@ export interface AdminBookingDetailResponse {
   space_name: string
   space_location: string
   space_images: string[]
-  renter_display_name: string
-  renter_full_name: string
-  renter_phone?: string | null
-  owner_display_name: string
-  owner_full_name: string
+  renter_profile_name: string
+  renter_phone: string
+  owner_profile_name: string
 }
 
 export interface OwnerBookingDetailResponse {
@@ -157,9 +162,8 @@ export interface OwnerBookingDetailResponse {
   space_name: string
   space_location: string
   space_images: string[]
-  renter_display_name: string
-  renter_full_name: string
-  renter_phone?: string | null
+  renter_profile_name: string
+  renter_phone: string
 }
 
 export interface CreateBookingRequest {
