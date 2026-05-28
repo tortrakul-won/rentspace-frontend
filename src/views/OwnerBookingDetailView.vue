@@ -4,11 +4,14 @@ import { useRoute, useRouter } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import AppSpinner from '../components/AppSpinner.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
+import BookingPartyCard from '../components/booking/BookingPartyCard.vue'
+import BookingSpacePreview from '../components/booking/BookingSpacePreview.vue'
+import BookingDatesGrid from '../components/booking/BookingDatesGrid.vue'
+import FeeBreakdownCard from '../components/booking/FeeBreakdownCard.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 import { ownerGetBookingDetail, updateBookingStatus } from '../api/bookings'
 import { minDelay } from '../utils/minDelay'
-import { formatPhone } from '../utils/format'
 import type { OwnerBookingDetailResponse } from '../api/types'
 import { BOOKING_BADGE_CLASS, OWNER_STATUS_LABEL } from '../composables/useBookingStatus'
 
@@ -53,22 +56,6 @@ async function handleConfirmedAction() {
     processing.value = false
   }
 }
-
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })
-}
-
-function formatDuration(start: string, end: string) {
-  const diff = (new Date(end).getTime() - new Date(start).getTime()) / 60000
-  const hours = Math.floor(diff / 60)
-  const mins = diff % 60
-  if (mins === 0) return `${hours}h`
-  return `${hours}h ${mins}m`
-}
-
-function formatPrice(n: number) {
-  return '฿' + n.toLocaleString('th-TH')
-}
 </script>
 
 <template>
@@ -109,67 +96,26 @@ function formatPrice(n: number) {
         </div>
 
         <!-- Renter info -->
-        <div class="bg-surface border border-border rounded-2xl p-5 mb-4">
-          <p class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Renter</p>
-          <p class="font-semibold text-text-primary">{{ booking.renter_profile_name }}</p>
-          <p v-if="booking.renter_phone" class="text-sm text-text-muted mt-0.5 font-mono">{{ formatPhone(booking.renter_phone) }}</p>
-        </div>
+        <BookingPartyCard label="Renter" :name="booking.renter_profile_name" :phone="booking.renter_phone" />
 
         <!-- Space + dates -->
         <div class="bg-surface border border-border rounded-2xl overflow-hidden mb-4">
-          <!-- Space thumbnail + name -->
           <div class="p-5">
-            <p class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Space</p>
-            <div class="flex items-start gap-3">
-              <div class="w-14 h-14 rounded-xl overflow-hidden bg-surface-muted flex-shrink-0">
-                <img
-                  v-if="booking.space_images?.[0]"
-                  :src="booking.space_images[0]"
-                  class="w-full h-full object-cover"
-                  :alt="booking.space_name"
-                />
-              </div>
-              <div>
-                <p class="font-semibold text-text-primary">{{ booking.space_name }}</p>
-                <p class="text-sm text-text-muted mt-0.5">{{ booking.space_location }}</p>
-              </div>
-            </div>
+            <BookingSpacePreview
+              :space-name="booking.space_name"
+              :space-location="booking.space_location"
+              :space-images="booking.space_images"
+            />
           </div>
-
-          <!-- Dates -->
           <div class="border-t border-border p-5">
-            <p class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Dates</p>
-            <div class="grid grid-cols-2 gap-4 text-sm mb-3">
-              <div>
-                <p class="text-xs text-text-muted mb-0.5">Check-in</p>
-                <p class="text-text-primary font-medium">{{ formatDateTime(booking.start_time) }}</p>
-              </div>
-              <div>
-                <p class="text-xs text-text-muted mb-0.5">Check-out</p>
-                <p class="text-text-primary font-medium">{{ formatDateTime(booking.end_time) }}</p>
-              </div>
-            </div>
-            <p class="text-xs text-text-muted">Duration: <span class="font-medium text-text-secondary">{{ formatDuration(booking.start_time, booking.end_time) }}</span></p>
+            <BookingDatesGrid :start-time="booking.start_time" :end-time="booking.end_time" show-duration />
           </div>
         </div>
 
         <!-- Fee breakdown -->
         <div class="bg-surface border border-border rounded-2xl p-5 mb-6">
           <p class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Fee breakdown</p>
-          <div class="space-y-2 text-sm">
-            <div class="flex justify-between">
-              <span class="text-text-muted">Total charged to renter</span>
-              <span class="font-semibold text-text-primary">{{ formatPrice(booking.total_price) }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-text-muted">Platform fee</span>
-              <span class="text-text-secondary">{{ formatPrice(booking.platform_fee) }}</span>
-            </div>
-            <div class="flex justify-between border-t border-border pt-2 mt-2">
-              <span class="text-text-muted font-medium">You receive</span>
-              <span class="font-semibold text-brand">{{ formatPrice(booking.total_price - booking.platform_fee) }}</span>
-            </div>
-          </div>
+          <FeeBreakdownCard :total-price="booking.total_price" :platform-fee="booking.platform_fee" />
         </div>
 
         <!-- Actions: pending request -->
