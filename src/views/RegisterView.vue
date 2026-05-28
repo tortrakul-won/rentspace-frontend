@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 import { useLoading } from '../composables/useLoading'
 import { ApiError } from '../api/client'
 import AppLogo from '../components/AppLogo.vue'
+import ProfileFormFields from '../components/ProfileFormFields.vue'
 
 const router = useRouter()
 const { register } = useAuth()
@@ -19,23 +20,23 @@ const role = ref<'renter' | 'owner'>('renter')
 const passwordTouched = ref(false)
 const showPassword = ref(false)
 
-// Profile fields
-const profileName = ref('')
-const legalNameTh = ref('')
-const legalNameEn = ref('')
-const lineId = ref('')
-const phone = ref('')
-const isJuristic = ref(false)
-const isVatRegistered = ref(false)
-const taxId = ref('')
-const branchNumber = ref('')
-
-// Address fields
-const addressLine1 = ref('')
-const subdistrict = ref('')
-const district = ref('')
-const province = ref('')
-const postalCode = ref('')
+// Profile + address fields
+const form = reactive({
+  profile_name:      '',
+  legal_name_th:     '',
+  legal_name_en:     '',
+  line_id:           '',
+  phone:             '',
+  tax_id:            '',
+  is_juristic:       false,
+  is_vat_registered: false,
+  branch_number:     '',
+  address_line1:     '',
+  subdistrict:       '',
+  district:          '',
+  province:          '',
+  postal_code:       '',
+})
 
 const rules = computed(() => ({
   length:    password.value.length >= 8,
@@ -52,20 +53,11 @@ async function submit() {
   showLoading()
   try {
     await register(email.value, password.value, role.value, {
-      profile_name: profileName.value,
-      legal_name_th: legalNameTh.value,
-      legal_name_en: legalNameEn.value || undefined,
-      line_id: lineId.value || undefined,
-      phone: phone.value,
-      address_line1: addressLine1.value,
-      subdistrict: subdistrict.value,
-      district: district.value,
-      province: province.value,
-      postal_code: postalCode.value,
-      branch_number: branchNumber.value || '00000',
-      tax_id: taxId.value || undefined,
-      is_juristic: isJuristic.value,
-      is_vat_registered: isVatRegistered.value,
+      ...form,
+      branch_number:  form.branch_number || '00000',
+      tax_id:         form.tax_id || undefined,
+      legal_name_en:  form.legal_name_en || undefined,
+      line_id:        form.line_id || undefined,
     })
     show('Account created! Welcome to RentSpace.', 'success')
     await router.push('/')
@@ -135,12 +127,11 @@ async function submit() {
             </p>
           </div>
 
-          <!-- Divider: Account -->
+          <!-- Account -->
           <div class="pt-1">
             <p class="text-xs font-bold text-brand uppercase tracking-wider mb-3">Account</p>
 
             <div class="space-y-4">
-              <!-- Email -->
               <div>
                 <label class="block text-sm font-medium text-text-primary mb-1.5">
                   Email <span class="text-error">*</span>
@@ -155,7 +146,6 @@ async function submit() {
                 />
               </div>
 
-              <!-- Password -->
               <div>
                 <label class="block text-sm font-medium text-text-primary mb-1.5">
                   Password <span class="text-error">*</span>
@@ -212,220 +202,9 @@ async function submit() {
             </div>
           </div>
 
-          <!-- Divider: Profile -->
-          <div class="pt-1 border-t border-border">
-            <p class="text-xs font-bold text-brand uppercase tracking-wider mb-3 mt-3">Profile</p>
-
-            <div class="space-y-4">
-              <!-- Profile name -->
-              <div>
-                <label class="block text-sm font-medium text-text-primary mb-1.5">
-                  Name <span class="text-error">*</span>
-                </label>
-                <input
-                  v-model="profileName"
-                  type="text"
-                  required
-                  placeholder="สมชาย หรือ บริษัท ABC จำกัด"
-                  class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
-                />
-                <p class="mt-1 text-xs text-text-muted">Can be your name, nickname, or company name — used for display and contact</p>
-              </div>
-
-              <!-- Legal name (Thai) -->
-              <div>
-                <label class="block text-sm font-medium text-text-primary mb-1.5">
-                  Legal name (Thai) <span class="text-error">*</span>
-                  <span class="text-xs text-text-muted font-normal ml-1">— appears on contracts & invoices</span>
-                </label>
-                <input
-                  v-model="legalNameTh"
-                  type="text"
-                  required
-                  placeholder="สมชาย มีสุข หรือ บริษัท ABC จำกัด"
-                  class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
-                />
-              </div>
-
-              <!-- Legal name (English) -->
-              <div>
-                <label class="block text-sm font-medium text-text-primary mb-1.5">
-                  Legal name (English)
-                  <span class="text-xs text-text-muted font-normal ml-1">— optional, for English documents</span>
-                </label>
-                <input
-                  v-model="legalNameEn"
-                  type="text"
-                  placeholder="Somchai Meesuk or ABC Company Limited"
-                  class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
-                />
-              </div>
-
-              <!-- Line ID -->
-              <div>
-                <label class="block text-sm font-medium text-text-primary mb-1.5">
-                  Line ID
-                  <span class="text-xs text-text-muted font-normal ml-1">— optional, for contact</span>
-                </label>
-                <input
-                  v-model="lineId"
-                  type="text"
-                  placeholder="@yourlineid"
-                  class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
-                />
-              </div>
-
-              <!-- Entity type -->
-              <div>
-                <label class="block text-sm font-medium text-text-primary mb-2">Entity type</label>
-                <div class="flex gap-3">
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" :value="false" v-model="isJuristic" class="accent-brand" />
-                    <span class="text-sm text-text-primary">Individual</span>
-                  </label>
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" :value="true" v-model="isJuristic" class="accent-brand" />
-                    <span class="text-sm text-text-primary">Company / Organization</span>
-                  </label>
-                </div>
-              </div>
-
-              <!-- Phone -->
-              <div>
-                <label class="block text-sm font-medium text-text-primary mb-1.5">
-                  Phone number <span class="text-error">*</span>
-                </label>
-                <input
-                  v-model="phone"
-                  type="tel"
-                  required
-                  autocomplete="tel"
-                  placeholder="081-234-5678"
-                  class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
-                />
-              </div>
-
-              <!-- Tax ID -->
-              <div>
-                <label class="block text-sm font-medium text-text-primary mb-1.5">
-                  Tax ID (13-digit)
-                  <span v-if="role === 'owner'" class="text-error">*</span>
-                  <span v-else class="text-text-muted font-normal ml-1">— optional, for tax invoices</span>
-                  <span class="text-xs text-text-muted font-normal ml-1">— appears on tax documents</span>
-                </label>
-                <input
-                  v-model="taxId"
-                  type="text"
-                  :required="role === 'owner'"
-                  maxlength="13"
-                  placeholder="1234567890123"
-                  class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
-                />
-              </div>
-
-              <!-- VAT registered (company only) -->
-              <div v-if="isJuristic" class="space-y-3">
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" v-model="isVatRegistered" class="accent-brand rounded" />
-                  <span class="text-sm text-text-primary">VAT registered (จดทะเบียนภาษีมูลค่าเพิ่ม)</span>
-                </label>
-
-                <!-- Branch number (VAT only) -->
-                <div v-if="isVatRegistered">
-                  <label class="block text-sm font-medium text-text-primary mb-1.5">
-                    Branch number
-                    <span class="text-xs text-text-muted font-normal ml-1">— appears on tax invoices (00000 = head office)</span>
-                  </label>
-                  <input
-                    v-model="branchNumber"
-                    type="text"
-                    maxlength="5"
-                    placeholder="00000"
-                    class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Divider: Address -->
-          <div class="pt-1 border-t border-border">
-            <p class="text-xs font-bold text-brand uppercase tracking-wider mb-1 mt-3">Address</p>
-            <p class="text-xs text-text-muted mb-3">Appears on rental agreements and tax documents</p>
-
-            <div class="space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-text-primary mb-1.5">
-                  Address line 1 <span class="text-error">*</span>
-                  <span class="text-xs text-text-muted font-normal ml-1">— บ้านเลขที่ / ถนน / ซอย</span>
-                </label>
-                <input
-                  v-model="addressLine1"
-                  type="text"
-                  required
-                  placeholder="123/4 ถนนสุขุมวิท"
-                  class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
-                />
-              </div>
-
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-sm font-medium text-text-primary mb-1.5">
-                    Subdistrict <span class="text-error">*</span>
-                    <span class="text-xs text-text-muted font-normal ml-1">ตำบล/แขวง</span>
-                  </label>
-                  <input
-                    v-model="subdistrict"
-                    type="text"
-                    required
-                    placeholder="คลองเตย"
-                    class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-text-primary mb-1.5">
-                    District <span class="text-error">*</span>
-                    <span class="text-xs text-text-muted font-normal ml-1">อำเภอ/เขต</span>
-                  </label>
-                  <input
-                    v-model="district"
-                    type="text"
-                    required
-                    placeholder="คลองเตย"
-                    class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-sm font-medium text-text-primary mb-1.5">
-                    Province <span class="text-error">*</span>
-                    <span class="text-xs text-text-muted font-normal ml-1">จังหวัด</span>
-                  </label>
-                  <input
-                    v-model="province"
-                    type="text"
-                    required
-                    placeholder="กรุงเทพมหานคร"
-                    class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-text-primary mb-1.5">
-                    Postal code <span class="text-error">*</span>
-                  </label>
-                  <input
-                    v-model="postalCode"
-                    type="text"
-                    required
-                    maxlength="5"
-                    placeholder="10110"
-                    class="w-full px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-muted border border-border rounded-xl outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-colors"
-                  />
-                </div>
-              </div>
-            </div>
+          <!-- Profile + Address (shared component) -->
+          <div class="pt-1 border-t border-border space-y-6 mt-2">
+            <ProfileFormFields :form="form" :role="role" />
           </div>
 
           <button

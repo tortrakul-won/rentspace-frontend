@@ -12,6 +12,7 @@ import {
   adminRejectPermanentBooking,
 } from '../api/bookings'
 import type { AdminBookingDetailResponse } from '../api/types'
+import { formatPhone } from '../utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -130,7 +131,7 @@ function formatPrice(n: number) {
         <div class="bg-surface border border-border rounded-2xl p-5 mb-4">
           <p class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Renter</p>
           <p class="font-semibold text-text-primary">{{ booking.renter_profile_name }}</p>
-          <p v-if="booking.renter_phone" class="text-sm text-text-muted mt-0.5">{{ booking.renter_phone }}</p>
+          <p v-if="booking.renter_phone" class="text-sm text-text-muted mt-0.5 font-mono">{{ formatPhone(booking.renter_phone) }}</p>
         </div>
 
         <!-- Property + Owner info -->

@@ -1,11 +1,11 @@
 import { apiFetch } from './client'
-import type { AdminBookingDetailResponse, OwnerBookingDetailResponse, BookingResponse, BookingStatus, CreateBookingRequest } from './types'
+import type { AdminBookingDetailResponse, OwnerBookingDetailResponse, BookingResponse, RenterBookingDetailResponse, BookingStatus, CreateBookingRequest } from './types'
 
 export function createBooking(data: CreateBookingRequest, token: string): Promise<BookingResponse> {
   return apiFetch('/api/v1/bookings', { method: 'POST', body: JSON.stringify(data) }, token)
 }
 
-export function getBooking(id: string, token: string): Promise<BookingResponse> {
+export function getBooking(id: string, token: string): Promise<RenterBookingDetailResponse> {
   return apiFetch(`/api/v1/bookings/${id}`, {}, token)
 }
 

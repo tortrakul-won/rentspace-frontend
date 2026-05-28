@@ -54,23 +54,58 @@ const avatarInitial = computed(() =>
       <AppLogo />
 
       <nav class="hidden md:flex items-center gap-6 text-sm text-text-secondary">
-        <RouterLink to="/" class="hover:text-text-primary transition-colors">Browse</RouterLink>
+        <RouterLink to="/" class="flex items-center gap-1.5 hover:text-brand transition-colors">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          Browse
+        </RouterLink>
         <RouterLink
           v-if="activeProfile?.role === 'owner'"
           to="/my-spaces"
-          class="hover:text-text-primary transition-colors"
-        >My Spaces</RouterLink>
+          class="flex items-center gap-1.5 hover:text-brand transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+          My Spaces
+        </RouterLink>
         <RouterLink
           v-if="activeProfile?.role === 'owner'"
           to="/owner/bookings"
-          class="hover:text-text-primary transition-colors"
-        >Bookings</RouterLink>
+          class="flex items-center gap-1.5 hover:text-brand transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          Bookings
+        </RouterLink>
+        <RouterLink
+          v-if="activeProfile?.role === 'owner'"
+          to="/owner/earnings"
+          class="flex items-center gap-1.5 hover:text-brand transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Earnings
+        </RouterLink>
         <RouterLink
           v-if="activeProfile?.role === 'renter'"
           to="/my-bookings"
-          class="hover:text-text-primary transition-colors"
-        >My Bookings</RouterLink>
-        <a href="#" class="hover:text-text-primary transition-colors">How it works</a>
+          class="flex items-center gap-1.5 hover:text-brand transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          My Bookings
+        </RouterLink>
+        <a href="#" class="flex items-center gap-1.5 hover:text-brand transition-colors">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          How it works
+        </a>
       </nav>
 
       <!-- Unauthenticated -->
@@ -174,7 +209,18 @@ const avatarInitial = computed(() =>
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
-            Booking Requests
+            Bookings
+          </RouterLink>
+          <RouterLink
+            v-if="activeProfile?.role === 'owner'"
+            to="/owner/earnings"
+            @click="closeMenu"
+            class="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-subtle transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Earnings
           </RouterLink>
           <RouterLink
             v-if="activeProfile?.role === 'renter'"

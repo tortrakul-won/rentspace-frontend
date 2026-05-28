@@ -57,7 +57,7 @@ export function useBookingStatus(status: BookingStatus | string | undefined) {
   const isPending     = status === 'pending'
   const isConfirmed   = status === 'confirmed'
   const isCompleted   = status === 'completed'
-  const isCancellable = isPending || isPaymentDue
+  const isCancellable = isPending || isPaymentDue || isUnderReview || isConfirmed
 
   const badgeClass = BOOKING_BADGE_CLASS[status ?? ''] ?? 'bg-surface-muted text-text-muted'
 

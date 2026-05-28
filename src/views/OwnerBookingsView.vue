@@ -107,6 +107,14 @@ const TAB_EMPTY: Record<OwnerTab, string> = {
   completed: 'No completed bookings',
   cancelled: 'No cancelled bookings',
 }
+
+const earnedThisMonth = computed(() => {
+  const start = new Date()
+  start.setDate(1); start.setHours(0, 0, 0, 0)
+  return bookings.value
+    .filter((b) => b.status === 'completed' && new Date(b.end_time) >= start)
+    .reduce((sum, b) => sum + (b.total_price - b.platform_fee), 0)
+})
 </script>
 
 <template>
@@ -114,7 +122,7 @@ const TAB_EMPTY: Record<OwnerTab, string> = {
     <NavBar />
 
     <div class="max-w-3xl mx-auto px-6 py-10">
-      <h1 class="text-2xl font-bold text-text-primary mb-6">Booking Requests</h1>
+      <h1 class="text-2xl font-bold text-text-primary mb-6">Bookings</h1>
 
       <!-- Skeleton -->
       <div v-if="loading" class="space-y-4">
@@ -137,6 +145,28 @@ const TAB_EMPTY: Record<OwnerTab, string> = {
       </div>
 
       <template v-else>
+        <!-- Status line -->
+        <div class="flex items-center gap-3 mb-6 flex-wrap">
+          <span v-if="tabCount('requests') > 0" class="inline-flex items-center gap-1.5 text-xs text-warning font-medium">
+            <span class="w-1.5 h-1.5 rounded-full bg-warning inline-block"></span>
+            {{ tabCount('requests') }} pending {{ tabCount('requests') === 1 ? 'request' : 'requests' }}
+          </span>
+          <span v-if="tabCount('active') > 0" class="inline-flex items-center gap-1.5 text-xs text-success font-medium">
+            <span class="w-1.5 h-1.5 rounded-full bg-success inline-block"></span>
+            {{ tabCount('active') }} active
+          </span>
+          <RouterLink
+            to="/owner/earnings"
+            class="inline-flex items-center gap-1 text-xs text-text-muted hover:text-brand transition-colors ml-auto"
+          >
+            <span class="font-mono">{{ formatPrice(earnedThisMonth) }}</span>
+            <span>this month</span>
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </RouterLink>
+        </div>
+
         <!-- Tabs -->
         <div class="flex gap-1 border-b border-border mb-6">
           <button
