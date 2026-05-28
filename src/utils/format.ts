@@ -11,3 +11,21 @@ export function formatPhone(phone: string | null | undefined): string {
   if (d.length === 9)  return `${d.slice(0, 2)}-${d.slice(2, 5)}-${d.slice(5)}`
   return phone
 }
+
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
+
+export function formatDateTimeShort(iso: string): string {
+  return new Date(iso).toLocaleString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
+
+export function formatPrice(n: number): string {
+  return '฿' + n.toLocaleString('th-TH')
+}

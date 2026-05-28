@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
-import AppSpinner from '../components/AppSpinner.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
+import TabBar from '../components/common/TabBar.vue'
+import RenterBookingCard from '../components/booking/RenterBookingCard.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 import { minDelay } from '../utils/minDelay'
 import { listMyBookings, updateBookingStatus } from '../api/bookings'
 import type { BookingResponse } from '../api/types'
-import { BOOKING_BADGE_CLASS, RENTER_STATUS_LABEL, RENTER_TAB_STATUSES } from '../composables/useBookingStatus'
+import { RENTER_TAB_STATUSES } from '../composables/useBookingStatus'
 
 const { token } = useAuth()
 const { show } = useToast()
@@ -25,10 +26,14 @@ const confirmCancelStatus = ref<string | null>(null)
 type BookingTab = 'active' | 'completed' | 'cancelled'
 const activeTab = ref<BookingTab>('active')
 
+const TABS = [
+  { key: 'active',    label: 'Active' },
+  { key: 'completed', label: 'Completed' },
+  { key: 'cancelled', label: 'Cancelled' },
+]
+
 const visibleBookings = computed(() => {
   const filtered = bookings.value.filter((b) => RENTER_TAB_STATUSES[activeTab.value].includes(b.status))
-  // Active: upcoming first (soonest start_time first)
-  // Completed/Cancelled: most recent first
   return [...filtered].sort((a, b) => {
     const ta = new Date(a.start_time).getTime()
     const tb = new Date(b.start_time).getTime()
@@ -39,6 +44,10 @@ const visibleBookings = computed(() => {
 function tabCount(tab: BookingTab) {
   return bookings.value.filter((b) => RENTER_TAB_STATUSES[tab].includes(b.status)).length
 }
+
+const tabCounts = computed(() =>
+  Object.fromEntries(TABS.map((t) => [t.key, tabCount(t.key as BookingTab)]))
+)
 
 async function loadBookings() {
   loading.value = true
@@ -76,23 +85,6 @@ async function handleCancel() {
     cancellingId.value = null
   }
 }
-
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
-}
-
-function formatPrice(n: number) {
-  return '฿' + n.toLocaleString('th-TH')
-}
-
-const TABS: { key: BookingTab; label: string }[] = [
-  { key: 'active',    label: 'Active' },
-  { key: 'completed', label: 'Completed' },
-  { key: 'cancelled', label: 'Cancelled' },
-]
 </script>
 
 <template>
@@ -102,7 +94,6 @@ const TABS: { key: BookingTab; label: string }[] = [
     <div class="max-w-3xl mx-auto px-6 py-10">
       <h1 class="text-2xl font-bold text-text-primary mb-6">My Bookings</h1>
 
-      <!-- Skeleton -->
       <div v-if="loading" class="space-y-4">
         <div v-for="i in 3" :key="i" class="bg-surface border border-border rounded-2xl p-5 animate-pulse">
           <div class="h-4 bg-surface-muted rounded w-1/3 mb-3"></div>
@@ -111,41 +102,19 @@ const TABS: { key: BookingTab; label: string }[] = [
         </div>
       </div>
 
-      <!-- Error -->
       <div v-else-if="fetchError" class="text-center py-24">
         <p class="text-text-muted mb-4">Could not load bookings.</p>
-        <button @click="() => { fetchError = false; loading = true; listMyBookings(token!).then(b => bookings = b).catch(() => fetchError = true).finally(() => loading = false) }"
-          class="text-sm text-brand hover:text-brand-hover font-medium underline underline-offset-2">
-          Retry
-        </button>
+        <button @click="loadBookings" class="text-sm text-brand hover:text-brand-hover font-medium underline underline-offset-2">Retry</button>
       </div>
 
       <template v-else>
-        <!-- Tabs -->
-        <div class="flex gap-1 border-b border-border mb-6">
-          <button
-            v-for="tab in TABS"
-            :key="tab.key"
-            @click="activeTab = tab.key"
-            :class="[
-              'px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
-              activeTab === tab.key
-                ? 'border-brand text-brand'
-                : 'border-transparent text-text-muted hover:text-text-primary',
-            ]"
-          >
-            {{ tab.label }}
-            <span
-              v-if="tabCount(tab.key) > 0"
-              :class="[
-                'ml-1.5 text-[10px] font-bold rounded-full px-1.5 py-0.5',
-                activeTab === tab.key ? 'bg-brand text-text-inverse' : 'bg-surface-muted text-text-muted',
-              ]"
-            >{{ tabCount(tab.key) }}</span>
-          </button>
-        </div>
+        <TabBar
+          :tabs="TABS"
+          :model-value="activeTab"
+          :counts="tabCounts"
+          @update:model-value="activeTab = $event as BookingTab"
+        />
 
-        <!-- Empty state per tab -->
         <div v-if="visibleBookings.length === 0" class="text-center py-24">
           <p class="text-text-primary font-medium mb-1">
             {{ activeTab === 'active' ? 'No active bookings' : activeTab === 'completed' ? 'No completed bookings' : 'No cancelled bookings' }}
@@ -153,93 +122,14 @@ const TABS: { key: BookingTab; label: string }[] = [
           <p v-if="activeTab === 'active'" class="text-text-muted text-sm">Browse spaces and request your first booking</p>
         </div>
 
-        <!-- List -->
         <div v-else class="space-y-4">
-          <div
+          <RenterBookingCard
             v-for="booking in visibleBookings"
             :key="booking.id"
-            class="bg-surface border border-border rounded-2xl overflow-hidden"
-          >
-            <div class="flex gap-4 p-5">
-              <!-- Space thumbnail -->
-              <div class="w-20 h-16 rounded-xl overflow-hidden bg-surface-muted shrink-0">
-                <img
-                  v-if="booking.space_images?.[0]"
-                  :src="booking.space_images[0]"
-                  :alt="booking.space_name"
-                  class="w-full h-full object-cover"
-                />
-              </div>
-
-              <div class="flex-1 min-w-0">
-                <div class="flex items-start justify-between gap-3 flex-wrap">
-                  <div class="space-y-0.5 min-w-0">
-                    <p v-if="booking.space_name" class="font-medium text-text-primary truncate">{{ booking.space_name }}</p>
-                    <p class="text-sm text-text-muted">{{ formatDateTime(booking.start_time) }} → {{ formatDateTime(booking.end_time) }}</p>
-                    <p class="font-mono font-semibold text-text-primary">{{ formatPrice(booking.total_price) }}</p>
-                    <p v-if="booking.ref_code" class="text-xs text-text-muted font-mono">Ref: {{ booking.ref_code }}</p>
-                  </div>
-                  <span :class="['text-xs font-medium px-2.5 py-1 rounded-full shrink-0', BOOKING_BADGE_CLASS[booking.status]]">
-                    {{ RENTER_STATUS_LABEL[booking.status] }}
-                  </span>
-                </div>
-
-                <!-- Actions -->
-                <div class="mt-3 flex gap-2 flex-wrap items-center">
-                  <!-- Pending / Confirmed: view booking summary -->
-                  <RouterLink
-                    v-if="booking.status === 'pending' || booking.status === 'confirmed'"
-                    :to="`/bookings/${booking.id}/confirm`"
-                    class="px-3 py-1.5 text-xs font-medium text-text-secondary border border-border rounded-lg hover:bg-surface-muted transition-colors"
-                  >
-                    View Details
-                  </RouterLink>
-                  <!-- Awaiting payment -->
-                  <RouterLink
-                    v-if="booking.status === 'awaiting_payment' || booking.status === 'payment_pending'"
-                    :to="`/bookings/${booking.id}/payment`"
-                    class="px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
-                  >
-                    View Payment Details
-                  </RouterLink>
-                  <!-- Under review -->
-                  <RouterLink
-                    v-if="booking.status === 'payment_review'"
-                    :to="`/bookings/${booking.id}/review`"
-                    class="px-3 py-1.5 text-xs font-medium text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors"
-                  >
-                    View Review Status
-                  </RouterLink>
-                  <!-- Completed -->
-                  <RouterLink
-                    v-if="booking.status === 'completed'"
-                    :to="`/bookings/${booking.id}/confirm`"
-                    class="px-3 py-1.5 text-xs font-medium text-text-muted border border-border rounded-lg hover:bg-surface-muted transition-colors"
-                  >
-                    View Details
-                  </RouterLink>
-                  <!-- Cancelled -->
-                  <RouterLink
-                    v-if="booking.status === 'cancelled'"
-                    :to="`/bookings/${booking.id}/cancelled`"
-                    class="px-3 py-1.5 text-xs font-medium text-text-muted border border-border rounded-lg hover:bg-surface-muted transition-colors"
-                  >
-                    View Details
-                  </RouterLink>
-                  <!-- Cancel action -->
-                  <button
-                    v-if="['pending', 'payment_pending', 'awaiting_payment', 'payment_review', 'confirmed'].includes(booking.status)"
-                    @click="requestCancel(booking.id, booking.status)"
-                    :disabled="cancellingId === booking.id"
-                    class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 bg-surface rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
-                  >
-                    <AppSpinner v-if="cancellingId === booking.id" />
-                    <span>{{ cancellingId === booking.id ? 'Cancelling…' : 'Cancel booking' }}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+            :booking="booking"
+            :cancelling-id="cancellingId"
+            @cancel="requestCancel"
+          />
         </div>
       </template>
     </div>
