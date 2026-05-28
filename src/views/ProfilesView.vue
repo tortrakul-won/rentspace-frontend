@@ -71,7 +71,9 @@ async function handleSwitch(profileId: string) {
 
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-base font-semibold text-text-primary">{{ ROLE_META[role].label }}</span>
+                <span class="text-base font-semibold text-text-primary">
+                  {{ profileForRole(role)?.profile_name ?? ROLE_META[role].label }}
+                </span>
                 <RoleBadge :role="role" />
                 <span
                   v-if="profileForRole(role)?.id === activeProfile?.id"
@@ -81,20 +83,7 @@ async function handleSwitch(profileId: string) {
                 </span>
               </div>
 
-              <p class="text-sm text-text-secondary mt-0.5">{{ ROLE_META[role].description }}</p>
-
-              <p
-                v-if="profileForRole(role) && profileForRole(role)!.id !== activeProfile?.id"
-                class="text-xs text-text-muted mt-1"
-              >
-                {{ profileForRole(role)!.profile_name }}
-              </p>
-              <p
-                v-else-if="profileForRole(role)?.id === activeProfile?.id"
-                class="text-xs text-text-muted mt-1"
-              >
-                {{ activeProfile?.profile_name }}
-              </p>
+              <p class="text-xs text-text-muted mt-0.5">{{ ROLE_META[role].description }}</p>
             </div>
 
             <!-- Action -->
