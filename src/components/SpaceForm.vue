@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch } from 'vue'
 import type { SpaceFormData, AvailabilitySlot } from '../api/types'
+import SpacePhotoSection from './space/SpacePhotoSection.vue'
+import SpaceScheduleSection from './space/SpaceScheduleSection.vue'
 
 const props = defineProps<{
   modelValue: SpaceFormData
@@ -16,48 +18,6 @@ const emit = defineEmits<{
 }>()
 
 const CATEGORIES = ['Studio', 'Outdoor', 'Loft', 'Garden', 'Office', 'Café', 'Other']
-const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const WEEKDAYS = [1, 2, 3, 4, 5]
-
-type DaySchedule = { enabled: boolean; open_time: string; close_time: string }
-const schedule = ref<DaySchedule[]>(
-  DAYS.map((_, i) => {
-    const slot = props.availability.find((s) => s.day_of_week === i)
-    return { enabled: !!slot, open_time: slot?.open_time ?? '09:00', close_time: slot?.close_time ?? '18:00' }
-  }),
-)
-
-watch(
-  schedule,
-  (val) => {
-    emit(
-      'update:availability',
-      val
-        .map((d, i) => ({ day_of_week: i, open_time: d.open_time, close_time: d.close_time }))
-        .filter((_, i) => val[i].enabled),
-    )
-  },
-  { deep: true },
-)
-
-function selectAllWeekdays() {
-  WEEKDAYS.forEach((i) => { schedule.value[i].enabled = true })
-}
-
-function clearAll() {
-  schedule.value.forEach((d) => { d.enabled = false })
-}
-
-// Image URLs — one per line
-const imagesRaw = ref(props.modelValue.images.join('\n'))
-const imageList = computed(() => imagesRaw.value.split('\n').map((u) => u.trim()).filter(Boolean))
-
-watch(imagesRaw, (v) => {
-  emit('update:modelValue', {
-    ...props.modelValue,
-    images: v.split('\n').map((u) => u.trim()).filter(Boolean),
-  })
-})
 
 // Amenities — comma-separated
 const amenitiesRaw = ref(props.modelValue.amenities.join(', '))
@@ -142,45 +102,8 @@ function update<K extends keyof SpaceFormData>(key: K, value: SpaceFormData[K]) 
       </div>
     </section>
 
-    <!-- Media -->
-    <section class="bg-surface border border-border rounded-2xl p-6 space-y-5">
-      <h2 class="text-sm font-semibold text-text-primary uppercase tracking-wider">Photos</h2>
-      <div>
-        <div class="flex items-center justify-between mb-1.5">
-          <label class="block text-sm font-medium text-text-primary">
-            Image URLs <span class="text-text-muted font-normal">(one per line)</span>
-          </label>
-          <span class="text-xs text-text-muted">{{ imageList.length }} image{{ imageList.length !== 1 ? 's' : '' }}</span>
-        </div>
-        <textarea
-          v-model="imagesRaw"
-          rows="3"
-          spellcheck="false"
-          placeholder="https://example.com/photo1.jpg&#10;https://example.com/photo2.jpg"
-          class="w-full px-4 py-2.5 text-sm text-text-primary bg-surface border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand transition resize-none font-mono"
-        />
-        <p class="text-xs text-text-muted mt-1.5">Add at least 1 photo. 16:9 ratio images look best.</p>
-        <!-- Image previews — one thumbnail per URL
-             TODO R2: when Cloudflare R2 upload is added, replace the textarea above with a
-             file picker. This thumbnail strip stays as-is — just feed it uploaded object URLs. -->
-        <div v-if="imageList.length" class="mt-3 flex flex-wrap gap-2">
-          <div
-            v-for="(url, idx) in imageList"
-            :key="idx"
-            class="relative w-24 h-16 rounded-xl overflow-hidden bg-surface-muted flex-shrink-0"
-            :class="idx === 0 ? 'border-2 border-brand' : 'border border-border'"
-          >
-            <img
-              :src="url"
-              :alt="`Preview ${idx + 1}`"
-              class="w-full h-full object-cover"
-              @error="($event.target as HTMLImageElement).style.display='none'"
-            />
-            <span class="absolute bottom-0.5 right-1 text-white text-[10px] font-medium drop-shadow">{{ idx + 1 }}</span>
-          </div>
-        </div>
-      </div>
-    </section>
+    <!-- Photos -->
+    <SpacePhotoSection :images="modelValue.images" @update:images="update('images', $event)" />
 
     <!-- Capacity & Amenities -->
     <section class="bg-surface border border-border rounded-2xl p-6 space-y-5">
@@ -274,67 +197,8 @@ function update<K extends keyof SpaceFormData>(key: K, value: SpaceFormData[K]) 
       </div>
     </section>
 
-    <!-- Availability -->
-    <section class="bg-surface border border-border rounded-2xl p-6 space-y-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-sm font-semibold text-text-primary uppercase tracking-wider">Weekly Schedule</h2>
-          <p class="text-xs text-text-muted mt-0.5">Unchecked days are shown as closed.</p>
-        </div>
-        <div class="flex gap-2">
-          <button
-            type="button"
-            @click="selectAllWeekdays"
-            class="text-xs text-brand hover:text-brand-hover font-medium underline underline-offset-2"
-          >
-            Weekdays
-          </button>
-          <span class="text-text-muted text-xs">·</span>
-          <button
-            type="button"
-            @click="clearAll"
-            class="text-xs text-text-muted hover:text-text-primary underline underline-offset-2"
-          >
-            Clear all
-          </button>
-        </div>
-      </div>
-      <div class="space-y-3">
-        <div
-          v-for="(day, i) in schedule"
-          :key="i"
-          class="flex items-center gap-4 flex-wrap"
-        >
-          <label class="flex items-center gap-2 w-28 cursor-pointer">
-            <input
-              type="checkbox"
-              v-model="day.enabled"
-              class="w-4 h-4 rounded border-border focus:ring-brand/30"
-              style="accent-color: var(--color-brand)"
-            />
-            <span :class="['text-sm text-text-primary', day.enabled ? 'font-medium' : '']">
-              {{ DAYS[i] }}
-            </span>
-          </label>
-          <div
-            class="flex items-center gap-2"
-            :class="day.enabled ? 'visible' : 'invisible'"
-          >
-            <input
-              type="time"
-              v-model="day.open_time"
-              class="px-3 py-1.5 text-sm text-text-primary bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand transition"
-            />
-            <span class="text-text-muted text-sm">to</span>
-            <input
-              type="time"
-              v-model="day.close_time"
-              class="px-3 py-1.5 text-sm text-text-primary bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand transition"
-            />
-          </div>
-        </div>
-      </div>
-    </section>
+    <!-- Weekly Schedule -->
+    <SpaceScheduleSection :availability="availability" @update:availability="emit('update:availability', $event)" />
 
     <!-- Submit -->
     <div class="flex justify-end gap-3">
