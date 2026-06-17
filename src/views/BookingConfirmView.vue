@@ -10,6 +10,7 @@ import PromptPayBlock from '../components/booking/PromptPayBlock.vue'
 import PaymentReviewBlock from '../components/booking/PaymentReviewBlock.vue'
 import OwnerContactCard from '../components/booking/OwnerContactCard.vue'
 import BookingNextSteps from '../components/booking/BookingNextSteps.vue'
+import BookingDocumentsCard from '../components/booking/BookingDocumentsCard.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 import { getBooking, updateBookingStatus } from '../api/bookings'
@@ -159,10 +160,21 @@ const cancelledMessage = computed(() => {
 
       <BookingNextSteps v-if="isPending" />
 
+      <BookingDocumentsCard
+        v-if="isConfirmed && booking && token"
+        class="mt-6"
+        :booking-id="booking.id"
+        :token="token"
+        :docs="[
+          { slug: 'rental-agreement', labelTH: 'สัญญาเช่าพื้นที่', labelEN: 'Rental Agreement' },
+          { slug: 'receipt', labelTH: 'ใบเสร็จรับเงิน / ใบกำกับภาษี', labelEN: 'Receipt / Tax Invoice' },
+        ]"
+      />
+
       <div class="mt-8 flex flex-col sm:flex-row gap-3">
         <RouterLink
           to="/my-bookings"
-          class="flex-1 text-center bg-brand text-text-inverse py-3 rounded-xl font-medium hover:bg-brand-hover transition-colors"
+          class="flex-1 text-center bg-surface border border-brand text-brand py-3 rounded-xl font-medium hover:bg-brand/5 transition-colors"
         >View my bookings</RouterLink>
         <RouterLink
           to="/"
