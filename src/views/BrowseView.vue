@@ -106,7 +106,7 @@ onMounted(() => fetchSpaces(true))
           :key="cat"
           @click="activeCategory = cat"
           :class="[
-            'shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors',
+            'shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors cursor-pointer',
             activeCategory === cat
               ? 'bg-brand text-text-inverse'
               : 'bg-surface-muted text-text-secondary hover:bg-surface-hover',
