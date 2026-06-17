@@ -168,6 +168,7 @@ export interface AdminBookingDetailResponse {
   space_images: string[]
   renter_profile_name: string
   renter_phone: string
+  renter_is_juristic: boolean
   owner_profile_name: string
 }
 
@@ -188,6 +189,7 @@ export interface OwnerBookingDetailResponse {
   space_images: string[]
   renter_profile_name: string
   renter_phone: string
+  renter_is_juristic: boolean
 }
 
 export interface CreateBookingRequest {

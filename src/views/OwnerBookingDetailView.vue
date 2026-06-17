@@ -8,6 +8,7 @@ import BookingPartyCard from '../components/booking/BookingPartyCard.vue'
 import BookingSpacePreview from '../components/booking/BookingSpacePreview.vue'
 import BookingDatesGrid from '../components/booking/BookingDatesGrid.vue'
 import FeeBreakdownCard from '../components/booking/FeeBreakdownCard.vue'
+import BookingDocumentsCard from '../components/booking/BookingDocumentsCard.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 import { ownerGetBookingDetail, updateBookingStatus } from '../api/bookings'
@@ -67,12 +68,12 @@ async function handleConfirmedAction() {
       <!-- Back -->
       <button
         @click="router.back()"
-        class="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition-colors mb-6"
+        class="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition-colors mb-6 cursor-pointer"
       >
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
-        Back to bookings
+        Back
       </button>
 
       <!-- Loading skeleton -->
@@ -117,6 +118,19 @@ async function handleConfirmedAction() {
           <p class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Fee breakdown</p>
           <FeeBreakdownCard :total-price="booking.total_price" :platform-fee="booking.platform_fee" />
         </div>
+
+        <!-- Documents -->
+        <BookingDocumentsCard
+          v-if="['confirmed', 'completed'].includes(booking.status) && token"
+          :booking-id="booking.id"
+          :token="token"
+          :docs="[
+            { slug: 'rental-agreement', labelTH: 'สัญญาเช่าพื้นที่', labelEN: 'Rental Agreement' },
+            { slug: 'receipt', labelTH: 'ใบเสร็จรับเงิน / ใบกำกับภาษี', labelEN: 'Receipt / Tax Invoice' },
+            { slug: 'payout-statement', labelTH: 'ใบแจ้งยอดการโอนเงิน', labelEN: 'Payout Statement' },
+            ...(booking.renter_is_juristic ? [{ slug: 'wht-certificate', labelTH: 'หนังสือรับรองหักภาษี ณ ที่จ่าย', labelEN: 'WHT Certificate' }] : []),
+          ]"
+        />
 
         <!-- Actions: pending request -->
         <div v-if="booking.status === 'pending'" class="bg-surface border border-border rounded-2xl p-5 flex gap-3">
