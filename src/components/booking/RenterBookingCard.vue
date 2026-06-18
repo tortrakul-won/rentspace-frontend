@@ -72,7 +72,7 @@ const emit = defineEmits<{
             v-if="['pending', 'payment_pending', 'awaiting_payment', 'payment_review', 'confirmed'].includes(booking.status)"
             @click="emit('cancel', booking.id, booking.status)"
             :disabled="cancellingId === booking.id"
-            class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 bg-surface rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
+            class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-400 bg-surface rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
           >
             <AppSpinner v-if="cancellingId === booking.id" />
             <span>{{ cancellingId === booking.id ? 'Cancelling…' : 'Cancel booking' }}</span>
