@@ -2,7 +2,7 @@
 import { RouterLink } from 'vue-router'
 import type { SpaceResponse } from '../api/types'
 
-defineProps<{ space: SpaceResponse }>()
+defineProps<{ space: SpaceResponse, to?: string }>()
 
 function formatPrice(n: number): string {
   return '฿' + n.toLocaleString('th-TH')
@@ -10,7 +10,7 @@ function formatPrice(n: number): string {
 </script>
 
 <template>
-  <RouterLink :to="`/spaces/${space.id}`" class="group block">
+  <RouterLink :to="to ?? `/spaces/${space.id}`" class="group block">
     <div class="relative aspect-[4/3] rounded-xl overflow-hidden bg-surface-muted mb-3">
       <img
         v-if="space.images[0]"
