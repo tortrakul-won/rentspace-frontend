@@ -209,6 +209,12 @@ export interface NotificationResponse {
   created_at: string
 }
 
+export interface SlipPresignResponse {
+  upload_url: string
+  file_key: string
+  public_url: string
+}
+
 export interface SpaceFormData {
   name: string
   description: string

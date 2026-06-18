@@ -13,7 +13,7 @@ import BookingNextSteps from '../components/booking/BookingNextSteps.vue'
 import BookingDocumentsCard from '../components/booking/BookingDocumentsCard.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
-import { getBooking, updateBookingStatus } from '../api/bookings'
+import { getBooking, updateBookingStatus, presignSlipUpload } from '../api/bookings'
 import { getPaymentConfig } from '../api/config'
 import type { RenterBookingDetailResponse } from '../api/types'
 import type { PaymentConfig } from '../api/config'
@@ -32,11 +32,18 @@ const submittingSlip = ref(false)
 const confirmCancel = ref(false)
 const cancelling = ref(false)
 
-async function submitSlip() {
+async function submitSlip(file: File) {
   if (!booking.value || !token.value) return
   submittingSlip.value = true
   try {
-    await updateBookingStatus(booking.value.id, 'payment_review', token.value)
+    const presign = await presignSlipUpload(booking.value.id, file.size, file.type, token.value)
+    const uploadRes = await fetch(presign.upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    })
+    if (!uploadRes.ok) throw new Error('Upload to storage failed')
+    await updateBookingStatus(booking.value.id, 'payment_review', token.value, presign.public_url)
     show('Slip submitted — awaiting admin review', 'success')
     await loadBooking(booking.value.id)
   } catch (e: any) {
@@ -186,7 +193,7 @@ const cancelledMessage = computed(() => {
         <button
           @click="confirmCancel = true"
           :disabled="cancelling"
-          class="w-full py-3 rounded-xl text-sm font-medium text-red-600 border border-red-200 bg-surface hover:bg-red-50 transition-colors disabled:opacity-50"
+          class="w-full py-3 rounded-xl text-sm font-medium text-red-600 border border-red-400 bg-surface hover:bg-red-50 transition-colors disabled:opacity-50"
         >{{ cancelling ? 'Cancelling…' : 'Cancel this booking' }}</button>
       </div>
     </div>

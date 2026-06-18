@@ -1,5 +1,5 @@
 import { apiFetch, ApiError, BASE } from './client'
-import type { AdminBookingDetailResponse, OwnerBookingDetailResponse, BookingResponse, RenterBookingDetailResponse, BookingStatus, CreateBookingRequest } from './types'
+import type { AdminBookingDetailResponse, OwnerBookingDetailResponse, BookingResponse, RenterBookingDetailResponse, BookingStatus, CreateBookingRequest, SlipPresignResponse } from './types'
 
 export function createBooking(data: CreateBookingRequest, token: string): Promise<BookingResponse> {
   return apiFetch('/api/v1/bookings', { method: 'POST', body: JSON.stringify(data) }, token)
@@ -17,8 +17,32 @@ export function listOwnerBookings(token: string): Promise<BookingResponse[]> {
   return apiFetch('/api/v1/bookings/owner', {}, token)
 }
 
-export function updateBookingStatus(id: string, status: BookingStatus, token: string): Promise<BookingResponse> {
-  return apiFetch(`/api/v1/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }, token)
+export function updateBookingStatus(id: string, status: BookingStatus, token: string, slipUrl?: string): Promise<BookingResponse> {
+  return apiFetch(`/api/v1/bookings/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, ...(slipUrl ? { slip_url: slipUrl } : {}) }),
+  }, token)
+}
+
+export function presignSlipUpload(bookingId: string, fileSize: number, mimeType: string, token: string): Promise<SlipPresignResponse> {
+  return apiFetch('/api/v1/uploads/slip-presign', {
+    method: 'POST',
+    body: JSON.stringify({ booking_id: bookingId, file_size: fileSize, mime_type: mimeType }),
+  }, token)
+}
+
+export function presignPhotoUpload(fileSize: number, mimeType: string, token: string): Promise<SlipPresignResponse> {
+  return apiFetch('/api/v1/uploads/photo-presign', {
+    method: 'POST',
+    body: JSON.stringify({ file_size: fileSize, mime_type: mimeType }),
+  }, token)
+}
+
+export function deletePhoto(fileKey: string, token: string): Promise<void> {
+  return apiFetch('/api/v1/uploads/photo', {
+    method: 'DELETE',
+    body: JSON.stringify({ file_key: fileKey }),
+  }, token)
 }
 
 export function listSpaceBookings(spaceId: string, token: string): Promise<BookingResponse[]> {

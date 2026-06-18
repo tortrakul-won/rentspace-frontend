@@ -10,10 +10,11 @@ const props = defineProps<{
   submitting: boolean
 }>()
 
-const emit = defineEmits<{ submit: [] }>()
+const emit = defineEmits<{ submit: [file: File] }>()
 
 const slipFile = ref<File | null>(null)
 const slipPreviewUrl = ref<string | null>(null)
+const sizeError = ref(false)
 const confirmSubmitSlip = ref(false)
 const slipInput = ref<HTMLInputElement | null>(null)
 
@@ -21,6 +22,14 @@ function onSlipChange(e: Event) {
   const input = e.target as HTMLInputElement
   if (slipPreviewUrl.value) URL.revokeObjectURL(slipPreviewUrl.value)
   const file = input.files?.[0] ?? null
+  if (file && file.size > 5 * 1024 * 1024) {
+    sizeError.value = true
+    slipFile.value = null
+    slipPreviewUrl.value = null
+    if (slipInput.value) slipInput.value.value = ''
+    return
+  }
+  sizeError.value = false
   slipFile.value = file
   slipPreviewUrl.value = file ? URL.createObjectURL(file) : null
 }
@@ -29,6 +38,7 @@ function clearSlip() {
   if (slipPreviewUrl.value) URL.revokeObjectURL(slipPreviewUrl.value)
   slipFile.value = null
   slipPreviewUrl.value = null
+  sizeError.value = false
   if (slipInput.value) slipInput.value.value = ''
 }
 
@@ -115,12 +125,13 @@ onUnmounted(() => {
           </svg>
         </button>
       </div>
+      <p v-if="sizeError" class="text-xs text-red-600">File exceeds 5MB limit. Please choose a smaller image.</p>
       <button
         @click="confirmSubmitSlip = true"
         :disabled="!slipFile || submitting"
         class="w-full py-3 rounded-xl font-medium text-sm transition-colors disabled:opacity-50 bg-brand text-text-inverse hover:bg-brand-hover"
       >
-        {{ submitting ? 'Submitting…' : 'Submit Slip for Review' }}
+        {{ submitting ? 'Uploading…' : 'Submit Slip for Review' }}
       </button>
     </div>
   </div>
@@ -130,7 +141,7 @@ onUnmounted(() => {
     title="Submit payment slip?"
     message="This will submit your transfer slip for admin review. Make sure the slip shows the correct amount and transfer details."
     confirm-label="Yes, submit"
-    @confirm="confirmSubmitSlip = false; emit('submit')"
+    @confirm="confirmSubmitSlip = false; emit('submit', slipFile!)"
     @cancel="confirmSubmitSlip = false"
   />
 </template>
