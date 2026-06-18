@@ -83,7 +83,7 @@ const emit = defineEmits<{
         <button
           @click="emit('confirm-delete')"
           :disabled="deleting"
-          class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
+          class="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-400 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
         >
           <AppSpinner v-if="deleting" />
           <span>{{ deleting ? 'Deleting…' : 'Delete' }}</span>

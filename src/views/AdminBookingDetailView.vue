@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
@@ -27,6 +27,17 @@ const { show } = useToast()
 const booking = ref<AdminBookingDetailResponse | null>(null)
 const loading = ref(true)
 const processing = ref(false)
+
+const canAct = computed(() => booking.value?.status === 'payment_review')
+
+const statusLabel: Record<string, string> = {
+  confirmed: 'Payment already confirmed',
+  cancelled: 'Booking already cancelled',
+  completed: 'Booking completed',
+  awaiting_payment: 'Awaiting payment slip',
+  payment_pending: 'Payment pending',
+  pending: 'Pending',
+}
 const confirmApprove = ref(false)
 const confirmRejectRetry = ref(false)
 const confirmRejectPermanent = ref(false)
@@ -190,28 +201,37 @@ async function rejectPermanent() {
         </div>
 
         <!-- Actions -->
-        <div class="bg-surface border border-border rounded-2xl p-5 flex gap-3">
-          <button
-            @click="confirmApprove = true"
-            :disabled="processing"
-            class="flex-1 bg-brand text-text-inverse py-3 rounded-xl text-sm font-medium hover:bg-brand-hover transition-colors disabled:opacity-50"
+        <div class="bg-surface border border-border rounded-2xl p-5 space-y-3">
+          <p
+            v-if="!canAct"
+            class="text-sm text-center py-1"
+            :class="booking.status === 'cancelled' ? 'text-error font-semibold' : 'text-text-muted'"
           >
-            {{ processing ? 'Processing…' : 'Confirm Payment' }}
-          </button>
-          <button
-            @click="confirmRejectRetry = true"
-            :disabled="processing"
-            class="flex-1 border border-amber-300 text-amber-700 py-3 rounded-xl text-sm font-medium hover:bg-amber-50 transition-colors disabled:opacity-50"
-          >
-            Reject — retry
-          </button>
-          <button
-            @click="confirmRejectPermanent = true"
-            :disabled="processing"
-            class="flex-1 border border-border text-error py-3 rounded-xl text-sm font-medium hover:bg-red-50 transition-colors disabled:opacity-50"
-          >
-            Reject permanently
-          </button>
+            {{ statusLabel[booking.status] ?? `Status: ${booking.status}` }}
+          </p>
+          <div class="flex gap-3">
+            <button
+              @click="confirmApprove = true"
+              :disabled="processing || !canAct"
+              class="flex-1 bg-brand text-text-inverse py-3 rounded-xl text-sm font-medium hover:bg-brand-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {{ processing ? 'Processing…' : 'Confirm Payment' }}
+            </button>
+            <button
+              @click="confirmRejectRetry = true"
+              :disabled="processing || !canAct"
+              class="flex-1 border border-amber-300 text-amber-700 py-3 rounded-xl text-sm font-medium hover:bg-amber-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Reject — retry
+            </button>
+            <button
+              @click="confirmRejectPermanent = true"
+              :disabled="processing || !canAct"
+              class="flex-1 border border-red-400 text-error py-3 rounded-xl text-sm font-medium hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Reject permanently
+            </button>
+          </div>
         </div>
 
       </template>
