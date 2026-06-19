@@ -61,7 +61,7 @@ const emit = defineEmits<{
           <button
             @click="emit('action', booking.id, 'cancelled', 'Cancel this booking?', 'This will cancel the booking. This action cannot be undone.')"
             :disabled="actionId === booking.id"
-            class="shrink-0 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
+            class="shrink-0 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-400 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
           >
             <AppSpinner v-if="actionId === booking.id" />
             <span>{{ actionId === booking.id ? 'Processing…' : 'Cancel' }}</span>

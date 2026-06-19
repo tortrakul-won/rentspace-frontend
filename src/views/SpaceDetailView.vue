@@ -23,6 +23,7 @@ const notFound = ref(false)
 const submitting = ref(false)
 
 const isRenter = computed(() => activeProfile.value?.role === 'renter')
+const isOwner  = computed(() => activeProfile.value?.role === 'owner' && activeProfile.value.id === space.value?.owner_id)
 
 const lightboxOpen = ref(false)
 const lightboxIndex = ref(0)
@@ -143,6 +144,34 @@ async function handleBook(startTime: string, endTime: string) {
             :token="token"
             @book="handleBook"
           />
+          <!-- Owner viewing their own space -->
+          <div v-else-if="isOwner" class="border border-border rounded-2xl p-6 sticky top-24 space-y-4">
+            <div class="text-center">
+              <p class="text-2xl font-bold font-mono text-text-primary">
+                ฿{{ space.hourly_rate.toLocaleString('th-TH') }}<span class="text-base font-normal text-text-muted font-sans"> / hr</span>
+              </p>
+              <p class="text-sm text-text-muted mt-1">
+                ฿{{ space.daily_rate.toLocaleString('th-TH') }} / day
+              </p>
+            </div>
+            <RouterLink
+              :to="`/spaces/${space.id}/edit`"
+              class="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-brand text-text-inverse font-medium text-sm hover:bg-brand-hover transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+              </svg>
+              Edit space
+            </RouterLink>
+            <RouterLink
+              :to="`/owner/bookings`"
+              class="flex items-center justify-center w-full py-2.5 rounded-xl border border-border text-text-secondary text-sm font-medium hover:bg-surface-muted transition-colors"
+            >
+              View bookings
+            </RouterLink>
+          </div>
+
+          <!-- Non-owner, non-renter (guest or different owner) -->
           <div v-else class="border border-border rounded-2xl p-6 sticky top-24 text-center space-y-3">
             <p class="text-2xl font-bold font-mono text-text-primary">
               ฿{{ space.hourly_rate.toLocaleString('th-TH') }}<span class="text-base font-normal text-text-muted font-sans"> / hr</span>

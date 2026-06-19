@@ -9,6 +9,7 @@ const props = defineProps<{
   availability: AvailabilitySlot[]
   submitting: boolean
   submitLabel: string
+  submitted?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -103,7 +104,7 @@ function update<K extends keyof SpaceFormData>(key: K, value: SpaceFormData[K]) 
     </section>
 
     <!-- Photos -->
-    <SpacePhotoSection :images="modelValue.images" @update:images="update('images', $event)" />
+    <SpacePhotoSection :images="modelValue.images" :submitted="submitted" @update:images="update('images', $event)" />
 
     <!-- Capacity & Amenities -->
     <section class="bg-surface border border-border rounded-2xl p-6 space-y-5">

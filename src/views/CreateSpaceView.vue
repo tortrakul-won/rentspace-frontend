@@ -13,6 +13,7 @@ const { token } = useAuth()
 const { show } = useToast()
 
 const submitting = ref(false)
+const submitted = ref(false)
 
 const form = ref<SpaceFormData>({
   name: '',
@@ -32,7 +33,7 @@ const availability = ref<AvailabilitySlot[]>([])
 
 async function handleSubmit() {
   if (!form.value.images.length) {
-    show('At least one photo URL is required', 'error')
+    show('At least one photo is required', 'error')
     return
   }
   submitting.value = true
@@ -41,6 +42,7 @@ async function handleSubmit() {
     if (availability.value.length > 0) {
       await setAvailability(space.id, availability.value, token.value!)
     }
+    submitted.value = true
     show('Space created!', 'success')
     router.push('/my-spaces')
   } catch (e: any) {
@@ -73,6 +75,7 @@ async function handleSubmit() {
         v-model="form"
         v-model:availability="availability"
         :submitting="submitting"
+        :submitted="submitted"
         submit-label="Create space"
         @submit="handleSubmit"
       >

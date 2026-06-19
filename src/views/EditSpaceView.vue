@@ -16,6 +16,7 @@ const { show } = useToast()
 const spaceId = route.params.id as string
 const loading = ref(true)
 const submitting = ref(false)
+const submitted = ref(false)
 const notFound = ref(false)
 
 const form = ref<SpaceFormData>({
@@ -68,13 +69,14 @@ onMounted(async () => {
 
 async function handleSubmit() {
   if (!form.value.images.length) {
-    show('At least one photo URL is required', 'error')
+    show('At least one photo is required', 'error')
     return
   }
   submitting.value = true
   try {
     await updateSpace(spaceId, form.value, token.value!)
     await setAvailability(spaceId, availability.value, token.value!)
+    submitted.value = true
     show('Space updated!', 'success')
     router.push('/my-spaces')
   } catch (e: any) {
@@ -132,6 +134,7 @@ async function handleSubmit() {
           v-model="form"
           v-model:availability="availability"
           :submitting="submitting"
+          :submitted="submitted"
           submit-label="Save changes"
           @submit="handleSubmit"
         >
